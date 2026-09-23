@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 interface UserProfile {
   id: string;
@@ -35,29 +34,31 @@ export default function DashboardPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const hasInteractedRef = useRef(false);
+  const lastInteractionTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
     fetchData();
 
-    // Track user interaction
+    // Track user interaction (click, keypress, or scroll) within 2 minutes
     const onUserInteract = () => {
-      hasInteractedRef.current = true;
+      lastInteractionTimeRef.current = Date.now();
     };
     window.addEventListener('mousemove', onUserInteract);
     window.addEventListener('keydown', onUserInteract);
     window.addEventListener('click', onUserInteract);
+    window.addEventListener('scroll', onUserInteract);
 
     // Passive polling interval (does NOT extend session or last_active_at)
     const pollInterval = setInterval(pollActiveSignal, 15000);
 
-    // Explicit active heartbeat interval (only sends if visible and user interacted)
+    // Explicit active heartbeat (sends ONLY if tab visible AND user interacted within last 2 minutes)
     const heartbeatInterval = setInterval(sendActiveHeartbeat, 30000);
 
     return () => {
       window.removeEventListener('mousemove', onUserInteract);
       window.removeEventListener('keydown', onUserInteract);
       window.removeEventListener('click', onUserInteract);
+      window.removeEventListener('scroll', onUserInteract);
       clearInterval(pollInterval);
       clearInterval(heartbeatInterval);
     };
@@ -67,9 +68,7 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const meRes = await fetch('/api/auth/me', {
-        headers: { 'X-Passive-Request': 'true' },
-      });
+      const meRes = await fetch('/api/auth/me');
       if (!meRes.ok) {
         if (meRes.status === 401) {
           router.push('/login');
@@ -82,9 +81,7 @@ export default function DashboardPage() {
 
       await pollActiveSignal();
 
-      const setRes = await fetch('/api/user/settings', {
-        headers: { 'X-Passive-Request': 'true' },
-      });
+      const setRes = await fetch('/api/user/settings');
       if (setRes.ok) {
         const setCtx = await setRes.json();
         setSettings(setCtx.settings);
@@ -99,9 +96,7 @@ export default function DashboardPage() {
 
   const pollActiveSignal = async () => {
     try {
-      const sigRes = await fetch('/api/user/active-signal', {
-        headers: { 'X-Passive-Request': 'true' },
-      });
+      const sigRes = await fetch('/api/user/active-signal');
       if (sigRes.ok) {
         const sigData = await sigRes.json();
         setSignal(sigData);
@@ -114,10 +109,13 @@ export default function DashboardPage() {
   };
 
   const sendActiveHeartbeat = async () => {
-    if (document.visibilityState === 'visible' && hasInteractedRef.current) {
-      hasInteractedRef.current = false; // Reset flag until next interaction
+    const now = Date.now();
+    const twoMinutesMs = 2 * 60 * 1000;
+    const hasInteractedRecently = (now - lastInteractionTimeRef.current) <= twoMinutesMs;
+
+    if (document.visibilityState === 'visible' && hasInteractedRecently) {
       try {
-        await fetch('/api/user/heartbeat', { method: 'POST' });
+        await fetch('/api/session/heartbeat', { method: 'POST' });
         await pollActiveSignal();
       } catch (err) {
         console.error('Heartbeat failed:', err);
@@ -187,7 +185,7 @@ export default function DashboardPage() {
           <p><strong>Status:</strong> {signal.isActive ? 'Active 🟢' : 'Inactive ⚪'}</p>
           <p><strong>Last Activity Timestamp:</strong> {signal.lastActiveAt ? new Date(signal.lastActiveAt).toLocaleString() : 'N/A'}</p>
           <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
-            Note: Background polling is passive and does not reset idle session timers.
+            Note: Background polling does not extend idle session timers. Heartbeat sends only when tab is visible and active within 2 mins.
           </p>
         </div>
       )}

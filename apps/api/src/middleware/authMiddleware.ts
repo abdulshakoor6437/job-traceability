@@ -6,8 +6,15 @@ export interface AuthenticatedRequest extends Request {
   userId?: string;
   userScopedDal?: UserScopedDal;
   sessionToken?: string;
-  isPassive?: boolean;
+  isActivityRoute?: boolean;
 }
+
+// Explicit Allowlist of Activity Routes that extend last_active_at and idle session timeout
+const ACTIVITY_ROUTES_ALLOWLIST = new Set([
+  'POST:/api/session/heartbeat',
+  'POST:/api/user/heartbeat',
+  'PATCH:/api/user/settings',
+]);
 
 export async function requireAuth(
   req: AuthenticatedRequest,
@@ -29,8 +36,10 @@ export async function requireAuth(
       return;
     }
 
-    const isPassive = req.headers['x-passive-request'] === 'true' || req.query.passive === 'true';
-    const sessionData = await authService.validateAndTouchSession(rawToken, isPassive);
+    const routeKey = `${req.method.toUpperCase()}:${req.baseUrl}${req.path}`;
+    const isActivityRoute = ACTIVITY_ROUTES_ALLOWLIST.has(routeKey);
+
+    const sessionData = await authService.validateAndTouchSession(rawToken, isActivityRoute);
 
     if (!sessionData) {
       res.clearCookie('session_token');
@@ -40,11 +49,11 @@ export async function requireAuth(
 
     req.userId = sessionData.userId;
     req.sessionToken = rawToken;
-    req.isPassive = isPassive;
+    req.isActivityRoute = isActivityRoute;
     req.userScopedDal = createUserScopedDal(sessionData.userId);
 
-    // Only active (non-passive) requests touch the last_active_at timestamp
-    if (!isPassive) {
+    // Only explicit allowlisted activity routes update last_active_at timestamp
+    if (isActivityRoute) {
       req.userScopedDal.touchLastActive().catch((err) => {
         console.error('Failed to touch last active timestamp:', err);
       });

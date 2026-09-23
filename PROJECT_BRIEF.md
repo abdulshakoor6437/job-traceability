@@ -4,7 +4,7 @@ We are building a multi-user job-hunting assistant. Each user uploads a CV once.
 
 ## TECH DECISIONS (fixed, do not change without asking)
 - TypeScript everywhere: Next.js web app, Node API backend, Chrome extension (later).
-- Database: MySQL 8+ / MariaDB 10.4 in development. Portable SQL only, no JSON functions. Database name: `job_agent_dev` with dedicated user `job_agent_user`. utf8mb4, versioned migrations kept in repo.
+- Database: MySQL 8+ / MariaDB 10.4 in development. Portable standard SQL only, no JSON functions or MariaDB-only features. Keep a header comment in each migration file listing assumptions. Database name: `job_agent_dev` with dedicated user `job_agent_user`. utf8mb4, versioned migrations kept in repo.
 - Redis plus a background job queue (BullMQ). Redis is ONLY used for background jobs, NOT for auth. Worker fails loudly if Redis is unavailable (`[QUEUE WORKER ERROR] REDIS IS UNAVAILABLE!`).
 - Job data comes only from the JSearch and SerpAPI APIs. No scraping.
 - The system is multi-tenant from day one. Every table holding personal data has a user ID. The only exception is shared job cache tables, which must contain no personal data.
@@ -12,10 +12,11 @@ We are building a multi-user job-hunting assistant. Each user uploads a CV once.
   - (a) `authDal` for unauthenticated operations (signup, login, verification, password reset).
   - (b) `userScopedDal` requiring `userId` for every method.
   - ONLY the `dal` folder may import the database driver (`mysql2`) or db pool (`db.ts`). Enforced by automated check (`npm run check:dal`).
+- MANDATORY TESTING RULE: Every new endpoint that accepts an ID, and every new user-owned table, must ship with a cross-user test in the same module.
 - Sessions: Random opaque session tokens (NOT JWTs). Store SHA-256 hash of token in `user_sessions`. MySQL is single source of truth. Logout deletes/revokes session row immediately. Sliding 30-minute idle expiry, absolute 24-hour max lifetime. httpOnly, SameSite=Lax cookie (`secure` flag set whenever `NODE_ENV !== 'development'`).
-- Active Signal & Passive Polling: Only real user activity extends the session. Background polling sends `X-Passive-Request: true` header and does NOT extend `idle_expires_at` or update `last_active_at`. Web app sends explicit `POST /api/user/heartbeat` only when tab is visible and user interacted recently.
-- Auth Hardening & Security: Rate limiting on login, signup, password reset. Strict CORS allowing only `APP_URL` with credentials. State-changing requests protected against CSRF via Origin check plus SameSite cookie. Password min length: 10. Verification/reset tokens are SHA-256 hashed, single-use, expiring. No unused `SESSION_SECRET`.
-- Email: Logged to console in dev via interface (`IEmailService`), with direct verification helper in local dev UI.
+- Idle Timeout & Reversed Activity Default: Requests MUST NOT extend `last_active_at` or idle timeout unless the route is on an explicit allowlist of activity routes (`POST /api/session/heartbeat`, `POST /api/user/heartbeat`, `PATCH /api/user/settings`). `GET /api/auth/me` and `GET /api/user/active-signal` are NEVER on the list. Web app sends heartbeat only while tab is visible AND user interacted within the last 2 minutes.
+- Auth Hardening & Security: Rate limiting on login, signup, password reset. Strict CORS allowing only `APP_URL` with credentials. State-changing requests protected against CSRF via Origin check plus SameSite cookie. Password min length: 10. Verification/reset tokens are SHA-256 hashed, single-use, expiring. Server-side gated dev helper (`NODE_ENV === 'development'`). Equal response messages and HTTP statuses for signup (new vs existing email) and password reset (existing vs non-existing email) to prevent email enumeration. No `SESSION_SECRET`.
+- Email: Logged to console in dev via interface (`IEmailService`), with dev mode helper on signup page in `development` environment.
 - Web UI: Plain and functional.
 - No secrets in code. API keys live on the backend only, in environment variables (`.env`).
 - Never store users' LinkedIn or Indeed passwords.
@@ -38,8 +39,10 @@ Goal: a secure base that every later module sits on.
 - Redis connection & worker that fails loudly if Redis is down, leaving auth unaffected.
 - Environment config (`.env.example` template).
 - Protected web app page displaying logged-in user email and active session state.
-- Acceptance test script (`scripts/test-acceptance.ts`) demonstrating multi-tenant isolation with `user_settings` under arbitrary IDs, unverified login prevention, real email verification, passive idle timeout expiration, and immediate token revocation on logout.
-
-## DATABASE CHECK (COMPLETED)
-- Server: `10.4.32-MariaDB`
-- Database: `job_agent_dev` created. Dedicated MySQL user `job_agent_user` configured.
+- Automated test suite:
+  - `npm run check:dal` (Strict DAL scope check)
+  - `npm run test:acceptance` (Acceptance & isolation)
+  - `npm run test:dal-isolation` (DAL unit isolation)
+  - `npm run test:prod-security` (Production security & anti-enumeration)
+  - `npm run test:offline-auth` (Auth suite with Redis stopped)
+  - `npm run test:redis` (Real Redis queue job processing)

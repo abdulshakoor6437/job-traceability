@@ -22,6 +22,7 @@ export class AuthService {
     const existing = await authDal.findUserByEmail(trimmedEmail);
 
     if (existing) {
+      // Return exact same message and status shape to prevent email enumeration
       return { message: 'If your email is valid, a verification link has been sent.' };
     }
 
@@ -45,10 +46,17 @@ export class AuthService {
     const verifyUrl = `${config.appUrl}/verify-email?token=${rawVerificationToken}`;
     await emailService.sendVerificationEmail(trimmedEmail, rawVerificationToken, verifyUrl);
 
-    return {
+    const response: { message: string; rawToken?: string } = {
       message: 'If your email is valid, a verification link has been sent.',
-      rawToken: rawVerificationToken, // Provided for test automation
     };
+
+    // SERVER-SIDE GATED DEV HELPER (Item 2)
+    // Only attach rawToken if server is running strictly in development environment
+    if (config.env === 'development') {
+      response.rawToken = rawVerificationToken;
+    }
+
+    return response;
   }
 
   async verifyEmail(rawToken: string): Promise<boolean> {
@@ -80,12 +88,10 @@ export class AuthService {
       return { error: 'Invalid credentials.' };
     }
 
-    // Require email verification (Item 2b)
     if (!user.is_verified) {
       return { error: 'Email is not verified. Please verify your email address before logging in.' };
     }
 
-    // Generate session
     const rawToken = generateOpaqueToken();
     const tokenHash = hashToken(rawToken);
     const sessionId = crypto.randomUUID();
@@ -107,7 +113,7 @@ export class AuthService {
 
   async validateAndTouchSession(
     rawToken: string,
-    isPassive: boolean = false
+    isActivityRoute: boolean = false
   ): Promise<{ userId: string; sessionId: string } | null> {
     const tokenHash = hashToken(rawToken);
     const session = await authDal.findSessionByTokenHash(tokenHash);
@@ -118,7 +124,7 @@ export class AuthService {
 
     const now = new Date();
 
-    // Check max lifetime
+    // Check absolute max lifetime
     if (now > new Date(session.expires_at)) {
       await authDal.deleteSession(session.id);
       return null;
@@ -130,8 +136,8 @@ export class AuthService {
       return null;
     }
 
-    // Passive polling requests DO NOT extend idle expiry (Item 3)
-    if (!isPassive) {
+    // Item 3: REVERSED DEFAULT - Requests MUST NOT extend idle timeout unless explicitly on activity allowlist
+    if (isActivityRoute) {
       const nextIdleMs = Date.now() + config.session.idleTimeoutMinutes * 60 * 1000;
       const maxExpiryMs = new Date(session.expires_at).getTime();
       const finalIdleMs = Math.min(nextIdleMs, maxExpiryMs);

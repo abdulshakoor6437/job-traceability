@@ -5,8 +5,8 @@ const router = Router();
 
 router.use(requireAuth);
 
-// POST /api/user/heartbeat (Explicit active heartbeat sent when user is active & tab visible)
-router.post('/heartbeat', async (req: AuthenticatedRequest, res: Response) => {
+// POST /api/session/heartbeat & POST /api/user/heartbeat
+const handleHeartbeat = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userDal = req.userScopedDal!;
     await userDal.touchLastActive();
@@ -19,7 +19,9 @@ router.post('/heartbeat', async (req: AuthenticatedRequest, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ message: 'Heartbeat failed.' });
   }
-});
+};
+
+router.post('/heartbeat', handleHeartbeat);
 
 // GET /api/user/active-signal
 router.get('/active-signal', async (req: AuthenticatedRequest, res: Response) => {
@@ -34,7 +36,6 @@ router.get('/active-signal', async (req: AuthenticatedRequest, res: Response) =>
 
     const lastActive = profile.last_active_at ? new Date(profile.last_active_at) : null;
     const now = new Date();
-    // Consider active if activity was within last 30 minutes
     const isActive = lastActive
       ? (now.getTime() - lastActive.getTime()) <= 30 * 60 * 1000
       : false;

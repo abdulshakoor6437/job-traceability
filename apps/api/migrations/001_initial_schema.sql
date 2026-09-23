@@ -1,5 +1,10 @@
 -- Migration 001: Initial Schema
--- Database: job_agent_dev (MySQL 8+ / MariaDB utf8mb4)
+-- Target Engines: MariaDB 10.4+ and MySQL 8.0+
+-- Assumptions & Guidelines:
+-- 1. Standard ANSI/ISO SQL datatypes only (VARCHAR, INT, DATETIME, TINYINT).
+-- 2. No MariaDB-only extensions, no JSON functions or JSON column types.
+-- 3. UTF-8 multi-byte encoding (utf8mb4_unicode_ci).
+-- 4. Foreign key integrity with cascading deletes for user lifecycle cleanup.
 
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(36) PRIMARY KEY,

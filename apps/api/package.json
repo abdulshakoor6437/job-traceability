@@ -9,7 +9,10 @@
     "migrate": "tsx scripts/migrate.ts",
     "check:dal": "tsx scripts/check-dal-imports.ts",
     "test:acceptance": "tsx scripts/test-acceptance.ts",
-    "test:redis": "tsx scripts/test-redis-queue.ts"
+    "test:redis": "tsx scripts/test-redis-queue.ts",
+    "test:dal-isolation": "tsx scripts/test-dal-isolation.ts",
+    "test:prod-security": "tsx scripts/test-prod-security.ts",
+    "test:offline-auth": "tsx scripts/test-offline-auth.ts"
   },
   "dependencies": {
     "@job-agent/shared": "*",

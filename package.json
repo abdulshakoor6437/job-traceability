@@ -13,6 +13,13 @@
     "migrate": "npm --prefix apps/api run migrate",
     "check:dal": "npm --prefix apps/api run check:dal",
     "test:acceptance": "npm --prefix apps/api run test:acceptance",
+    "test:redis": "npm --prefix apps/api run test:redis",
+    "test:dal-isolation": "npm --prefix apps/api run test:dal-isolation",
+    "test:prod-security": "npm --prefix apps/api run test:prod-security",
+    "test:offline-auth": "npm --prefix apps/api run test:offline-auth",
     "build": "npm run build --workspaces"
+  },
+  "devDependencies": {
+    "redis-memory-server": "^0.17.1"
   }
 }
