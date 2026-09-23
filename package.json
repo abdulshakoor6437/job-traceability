@@ -1,0 +1,18 @@
+{
+  "name": "job-hunting-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:worker": "npm --prefix apps/api run worker",
+    "dev:web": "npm --prefix apps/web run dev",
+    "migrate": "npm --prefix apps/api run migrate",
+    "check:dal": "npm --prefix apps/api run check:dal",
+    "test:acceptance": "npm --prefix apps/api run test:acceptance",
+    "build": "npm run build --workspaces"
+  }
+}
