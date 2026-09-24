@@ -17,9 +17,10 @@
     "test:dal-isolation": "npm --prefix apps/api run test:dal-isolation",
     "test:prod-security": "npm --prefix apps/api run test:prod-security",
     "test:offline-auth": "npm --prefix apps/api run test:offline-auth",
+    "test:concurrency": "npm --prefix apps/api run test:concurrency",
+    "test:heartbeat": "npm --prefix apps/api run test:heartbeat",
+    "test:outbox": "npm --prefix apps/api run test:outbox",
+    "test:all": "npm --prefix apps/api run test:all",
     "build": "npm run build --workspaces"
-  },
-  "devDependencies": {
-    "redis-memory-server": "^0.17.1"
   }
 }

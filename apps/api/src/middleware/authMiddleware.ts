@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/authService';
 import { createUserScopedDal, UserScopedDal } from '../dal';
+import { config } from '../config/env';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -9,11 +10,9 @@ export interface AuthenticatedRequest extends Request {
   isActivityRoute?: boolean;
 }
 
-// Explicit Allowlist of Activity Routes that extend last_active_at and idle session timeout
+// Item 16: Keep EXACTLY ONE heartbeat route 'POST:/api/session/heartbeat'
 const ACTIVITY_ROUTES_ALLOWLIST = new Set([
   'POST:/api/session/heartbeat',
-  'POST:/api/user/heartbeat',
-  'PATCH:/api/user/settings',
 ]);
 
 export async function requireAuth(
@@ -24,7 +23,8 @@ export async function requireAuth(
   try {
     let rawToken: string | undefined = req.cookies?.session_token;
 
-    if (!rawToken && req.headers.authorization) {
+    // Item 12: Accept Bearer header ONLY when NODE_ENV is not production ('development')
+    if (!rawToken && config.env === 'development' && req.headers.authorization) {
       const parts = req.headers.authorization.split(' ');
       if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
         rawToken = parts[1];
@@ -32,7 +32,7 @@ export async function requireAuth(
     }
 
     if (!rawToken) {
-      res.status(401).json({ message: 'Authentication required. No session token provided.' });
+      res.status(401).json({ message: 'Authentication required. No valid session cookie provided.' });
       return;
     }
 
@@ -52,7 +52,6 @@ export async function requireAuth(
     req.isActivityRoute = isActivityRoute;
     req.userScopedDal = createUserScopedDal(sessionData.userId);
 
-    // Only explicit allowlisted activity routes update last_active_at timestamp
     if (isActivityRoute) {
       req.userScopedDal.touchLastActive().catch((err) => {
         console.error('Failed to touch last active timestamp:', err);

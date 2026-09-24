@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { getDbPool } from './db';
 import { RowDataPacket } from 'mysql2/promise';
 
@@ -16,6 +17,15 @@ export interface UserProfileRow extends RowDataPacket {
   last_active_at: Date | null;
   created_at: Date;
   updated_at: Date;
+}
+
+export function isValidIanaTimezone(tz: string): boolean {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export class UserScopedDal {
@@ -58,22 +68,22 @@ export class UserScopedDal {
     return rows.length > 0 ? rows[0] : null;
   }
 
+  // Item 13 & 14: Validate timezone and perform atomic UPSERT with UNIQUE(user_id)
   async updateSettings(timezone: string): Promise<UserSettingsRow> {
-    const pool = getDbPool();
-    // Verify existing setting owned by this user
-    const existing = await this.getSettings();
-    if (!existing) {
-      const id = crypto.randomUUID();
-      await pool.execute(
-        `INSERT INTO user_settings (id, user_id, timezone) VALUES (?, ?, ?)`,
-        [id, this.userId, timezone]
-      );
-    } else {
-      await pool.execute(
-        `UPDATE user_settings SET timezone = ?, updated_at = NOW() WHERE user_id = ?`,
-        [timezone, this.userId]
-      );
+    if (!timezone || !isValidIanaTimezone(timezone)) {
+      throw new Error(`Invalid IANA timezone string: '${timezone}'.`);
     }
+
+    const pool = getDbPool();
+    const id = crypto.randomUUID();
+
+    // Atomic UPSERT using ON DUPLICATE KEY UPDATE (Item 14)
+    await pool.execute(
+      `INSERT INTO user_settings (id, user_id, timezone) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE timezone = VALUES(timezone), updated_at = NOW()`,
+      [id, this.userId, timezone]
+    );
+
     const updated = await this.getSettings();
     if (!updated) {
       throw new Error('Failed to retrieve updated user settings.');

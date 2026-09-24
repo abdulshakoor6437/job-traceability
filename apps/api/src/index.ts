@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { config, validateConfig } from './config/env';
 import { csrfProtection } from './middleware/csrfProtection';
 import authRoutes from './routes/auth';
@@ -16,6 +17,9 @@ const app = express();
 
 // Item 5a: Set Express trust proxy according to TRUST_PROXY environment setting
 app.set('trust proxy', config.trustProxy);
+
+// Item 10: Helmet middleware with sensible security header defaults
+app.use(helmet());
 
 app.use(
   cors({

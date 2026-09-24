@@ -5,12 +5,14 @@ function makeRequest(
   port: number,
   method: string,
   path: string,
-  data?: any
+  data?: any,
+  appUrl: string = 'http://localhost:3000'
 ): Promise<{ status: number; body: any; headers: http.IncomingHttpHeaders }> {
   return new Promise((resolve, reject) => {
     const payload = data ? JSON.stringify(data) : undefined;
     const reqHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
+      'Origin': appUrl,
     };
     if (payload) {
       reqHeaders['Content-Length'] = Buffer.byteLength(payload).toString();
@@ -123,17 +125,17 @@ async function runProdSecurityTest() {
     const email = `token_absence_${targetEnv.port}_${timestamp}@example.com`;
 
     // 1. Signup
-    const resSignup = await makeRequest(targetEnv.port, 'POST', '/api/auth/signup', { email, password });
+    const resSignup = await makeRequest(targetEnv.port, 'POST', '/api/auth/signup', { email, password }, targetEnv.env.APP_URL);
     assertNoSecretsInResponse(resSignup, `${targetEnv.name} - Signup`);
     console.log(`   [Signup]              Status: ${resSignup.status} | Token/Link Absent: YES`);
 
     // 2. Resend Verification
-    const resResend = await makeRequest(targetEnv.port, 'POST', '/api/auth/resend-verification', { email });
+    const resResend = await makeRequest(targetEnv.port, 'POST', '/api/auth/resend-verification', { email }, targetEnv.env.APP_URL);
     assertNoSecretsInResponse(resResend, `${targetEnv.name} - Resend Verification`);
     console.log(`   [Resend Verification] Status: ${resResend.status} | Token/Link Absent: YES`);
 
     // 3. Request Password Reset
-    const resReset = await makeRequest(targetEnv.port, 'POST', '/api/auth/request-password-reset', { email });
+    const resReset = await makeRequest(targetEnv.port, 'POST', '/api/auth/request-password-reset', { email }, targetEnv.env.APP_URL);
     assertNoSecretsInResponse(resReset, `${targetEnv.name} - Request Password Reset`);
     console.log(`   [Request Reset]       Status: ${resReset.status} | Token/Link Absent: YES`);
 

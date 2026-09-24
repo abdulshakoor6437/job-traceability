@@ -13,6 +13,7 @@ function makeRequest(port: number, method: string, path: string, data?: any): Pr
         method,
         headers: {
           'Content-Type': 'application/json',
+          'Origin': 'http://localhost:3000',
           ...(payload ? { 'Content-Length': Buffer.byteLength(payload).toString() } : {}),
         },
       },

@@ -17,6 +17,7 @@ function makeRequest(
     const payload = data ? JSON.stringify(data) : undefined;
     const reqHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
+      'Origin': config.appUrl,
       ...headers,
     };
     if (payload) {

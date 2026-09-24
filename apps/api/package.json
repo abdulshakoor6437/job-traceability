@@ -12,7 +12,11 @@
     "test:redis": "tsx scripts/test-redis-queue.ts",
     "test:dal-isolation": "tsx scripts/test-dal-isolation.ts",
     "test:prod-security": "tsx scripts/test-prod-security.ts",
-    "test:offline-auth": "tsx scripts/test-offline-auth.ts"
+    "test:offline-auth": "tsx scripts/test-offline-auth.ts",
+    "test:concurrency": "tsx scripts/test-concurrency.ts",
+    "test:heartbeat": "tsx scripts/test-heartbeat.ts",
+    "test:outbox": "tsx scripts/test-outbox.ts",
+    "test:all": "tsx scripts/test-all.ts"
   },
   "dependencies": {
     "@job-agent/shared": "*",
@@ -23,8 +27,10 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^7.2.0",
+    "helmet": "^8.3.0",
     "ioredis": "^5.4.1",
-    "mysql2": "^3.9.7"
+    "mysql2": "^3.9.7",
+    "nodemailer": "^6.9.13"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -32,6 +38,8 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^20.12.7",
+    "@types/nodemailer": "^6.4.15",
+    "redis-memory-server": "^0.17.1",
     "tsx": "^4.7.2",
     "typescript": "^5.3.3"
   }

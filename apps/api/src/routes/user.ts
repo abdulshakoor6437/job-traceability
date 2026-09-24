@@ -5,23 +5,7 @@ const router = Router();
 
 router.use(requireAuth);
 
-// POST /api/session/heartbeat & POST /api/user/heartbeat
-const handleHeartbeat = async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userDal = req.userScopedDal!;
-    await userDal.touchLastActive();
-    const profile = await userDal.getProfile();
 
-    res.json({
-      message: 'Heartbeat recorded.',
-      lastActiveAt: profile?.last_active_at,
-    });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Heartbeat failed.' });
-  }
-};
-
-router.post('/heartbeat', handleHeartbeat);
 
 // GET /api/user/active-signal
 router.get('/active-signal', async (req: AuthenticatedRequest, res: Response) => {
