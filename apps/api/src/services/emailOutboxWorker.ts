@@ -41,6 +41,11 @@ export async function processOutboxBatch(): Promise<void> {
 
       let success = false;
 
+      if (item.type === 'dummy_timing') {
+        await authDal.markOutboxSent(item.id);
+        continue;
+      }
+
       if (item.type === 'verification') {
         const userId = payload.userId;
         if (!userId) {

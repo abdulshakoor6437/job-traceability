@@ -232,15 +232,15 @@ export class AuthService {
     const user = await authDal.findUserByEmail(trimmedEmail);
 
     if (user) {
-      // Item 4: Enqueue outbox email with userId only (token created at send time in worker)
+      // Item 4 & 6: Enqueue outbox email with userId only
       await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'password_reset', trimmedEmail, {
         userId: user.id,
       });
     } else {
-      // Item 6: Dummy DB query for timing parity (~5ms) when email is unknown
-      const dummyToken = generateOpaqueToken();
-      hashToken(dummyToken);
-      await authDal.isEmailSuppressed('dummy_timing_check@localhost');
+      // Item 6: Enqueue dummy outbox item to ensure identical work (1 SELECT + 1 INSERT) for unknown emails
+      await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'dummy_timing', 'dummy_timing_check@localhost', {
+        userId: '00000000-0000-0000-0000-000000000000',
+      });
     }
 
     return genericMsg;
