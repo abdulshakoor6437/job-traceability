@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authService } from '../services/authService';
+import { authDal } from '../dal/authDal';
 import { authRateLimiter } from '../middleware/rateLimiter';
 import { requireAuth, AuthenticatedRequest } from '../middleware/authMiddleware';
 import { config } from '../config/env';
@@ -12,11 +13,6 @@ router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
     const { email, password } = req.body;
     if (!email || !password) {
       res.status(400).json({ message: 'Email and password are required.' });
-      return;
-    }
-
-    if (password.length < 10) {
-      res.status(400).json({ message: 'Password must be at least 10 characters long.' });
       return;
     }
 
@@ -48,7 +44,23 @@ router.post('/verify-email', async (req: Request, res: Response) => {
   }
 });
 
-// Login
+// Resend Verification Email (Item 7)
+router.post('/resend-verification', authRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ message: 'Email is required.' });
+      return;
+    }
+
+    const message = await authService.resendVerification(email);
+    res.json({ message });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Resend verification request failed.' });
+  }
+});
+
+// Login (Item 12: Cookie ONLY, session token NOT returned in JSON body)
 router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
@@ -57,7 +69,8 @@ router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
       return;
     }
 
-    const result = await authService.login(email, password);
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.ip || req.socket.remoteAddress || '127.0.0.1';
+    const result = await authService.login(email, password, clientIp);
     if ('error' in result) {
       res.status(401).json({ message: result.error });
       return;
@@ -72,9 +85,9 @@ router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
       path: '/',
     });
 
+    // Item 12: Session token is NOT returned in JSON body.
     res.json({
       message: 'Logged in successfully.',
-      token: result.rawToken,
       userId: result.userId,
     });
   } catch (error: any) {
@@ -87,7 +100,7 @@ router.post('/logout', async (req: AuthenticatedRequest, res: Response) => {
   try {
     let rawToken: string | undefined = req.cookies?.session_token;
 
-    if (!rawToken && req.headers.authorization) {
+    if (!rawToken && config.env === 'development' && req.headers.authorization) {
       const parts = req.headers.authorization.split(' ');
       if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
         rawToken = parts[1];
@@ -127,11 +140,6 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     const { token, newPassword } = req.body;
     if (!token || !newPassword) {
       res.status(400).json({ message: 'Token and new password are required.' });
-      return;
-    }
-
-    if (newPassword.length < 10) {
-      res.status(400).json({ message: 'Password must be at least 10 characters long.' });
       return;
     }
 

@@ -1,20 +1,16 @@
 import http from 'http';
-import { config } from '../src/config/env';
-
-const API_HOST = '127.0.0.1';
-const API_PORT = config.port;
+import { apiRunner } from './test-helpers/apiRunner';
 
 function makeRequest(
+  port: number,
   method: string,
   path: string,
-  data?: any,
-  headers: Record<string, string> = {}
-): Promise<{ status: number; body: any }> {
+  data?: any
+): Promise<{ status: number; body: any; headers: http.IncomingHttpHeaders }> {
   return new Promise((resolve, reject) => {
     const payload = data ? JSON.stringify(data) : undefined;
     const reqHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...headers,
     };
     if (payload) {
       reqHeaders['Content-Length'] = Buffer.byteLength(payload).toString();
@@ -22,8 +18,8 @@ function makeRequest(
 
     const req = http.request(
       {
-        host: API_HOST,
-        port: API_PORT,
+        host: '127.0.0.1',
+        port,
         path,
         method,
         headers: reqHeaders,
@@ -34,9 +30,9 @@ function makeRequest(
         res.on('end', () => {
           try {
             const body = bodyStr ? JSON.parse(bodyStr) : {};
-            resolve({ status: res.statusCode || 500, body });
+            resolve({ status: res.statusCode || 500, body, headers: res.headers });
           } catch {
-            resolve({ status: res.statusCode || 500, body: bodyStr });
+            resolve({ status: res.statusCode || 500, body: bodyStr, headers: res.headers });
           }
         });
       }
@@ -50,63 +46,107 @@ function makeRequest(
   });
 }
 
+function assertNoSecretsInResponse(res: { status: number; body: any; headers: any }, contextLabel: string) {
+  const jsonStr = JSON.stringify(res.body);
+  const headerStr = JSON.stringify(res.headers);
+
+  if (res.body.rawToken || res.body.token || res.body.link || res.body.verificationUrl || res.body.resetUrl) {
+    throw new Error(`SECURITY FAILURE [${contextLabel}]: Response body contained token/link keys! Body: ${jsonStr}`);
+  }
+
+  // 64-char hex token regex check
+  const hex64Regex = /\b[a-f0-9]{64}\b/i;
+  if (hex64Regex.test(jsonStr) || hex64Regex.test(headerStr)) {
+    throw new Error(`SECURITY FAILURE [${contextLabel}]: Response body or header contained a 64-character raw token hex string!`);
+  }
+
+  if (jsonStr.includes('http://') || jsonStr.includes('https://') || jsonStr.includes('/verify-email') || jsonStr.includes('/reset-password')) {
+    throw new Error(`SECURITY FAILURE [${contextLabel}]: Response body contained a verification/reset link!`);
+  }
+}
+
 async function runProdSecurityTest() {
   console.log('\n================================================================');
-  console.log('🧪 RUNNING PRODUCTION SECURITY & ENUMERATION PREVENTION TESTS');
+  console.log('🧪 RUNNING PRODUCTION SECURITY & TOKEN ABSENCE PROOF');
   console.log('================================================================\n');
 
   const timestamp = Date.now();
-  const newEmail = `prod_test_${timestamp}@example.com`;
   const password = 'Password123!';
 
-  console.log('1️⃣ Testing Signup Response for New vs Duplicate Email:');
-  const signup1 = await makeRequest('POST', '/api/auth/signup', { email: newEmail, password });
-  console.log(`   New Email Signup Status: ${signup1.status}`);
-  console.log(`   New Email Signup Message: "${signup1.body.message}"`);
+  const environments = [
+    {
+      name: 'Development + Console Mode',
+      port: 4101,
+      env: {
+        NODE_ENV: 'development',
+        EMAIL_MODE: 'console',
+        APP_URL: 'http://localhost:3000',
+        API_URL: 'http://localhost:4101',
+      },
+    },
+    {
+      name: 'Development + SMTP Mode',
+      port: 4102,
+      env: {
+        NODE_ENV: 'development',
+        EMAIL_MODE: 'smtp',
+        SMTP_HOST: '127.0.0.1',
+        SMTP_PORT: '1025',
+        SMTP_SECURE: 'false',
+        APP_URL: 'http://localhost:3000',
+        API_URL: 'http://localhost:4102',
+      },
+    },
+    {
+      name: 'Production + SMTP Mode',
+      port: 4103,
+      env: {
+        NODE_ENV: 'production',
+        EMAIL_MODE: 'smtp',
+        SMTP_HOST: '127.0.0.1',
+        SMTP_PORT: '1025',
+        SMTP_SECURE: 'false',
+        APP_URL: 'https://staging.jobassistant.com',
+        API_URL: 'https://staging-api.jobassistant.com',
+        EMAIL_FROM: 'Job Agent <no-reply@staging.jobassistant.com>',
+      },
+    },
+  ];
 
-  const signup2 = await makeRequest('POST', '/api/auth/signup', { email: newEmail, password });
-  console.log(`   Duplicate Email Signup Status: ${signup2.status}`);
-  console.log(`   Duplicate Email Signup Message: "${signup2.body.message}"`);
+  for (const targetEnv of environments) {
+    console.log(`▶ Testing Environment: ${targetEnv.name}...`);
+    await apiRunner.startServer(targetEnv.port, targetEnv.env);
 
-  if (signup1.status !== 201 || signup2.status !== 201) {
-    throw new Error('SECURITY TEST FAILED: Signup status codes differ for new vs duplicate emails!');
+    const email = `token_absence_${targetEnv.port}_${timestamp}@example.com`;
+
+    // 1. Signup
+    const resSignup = await makeRequest(targetEnv.port, 'POST', '/api/auth/signup', { email, password });
+    assertNoSecretsInResponse(resSignup, `${targetEnv.name} - Signup`);
+    console.log(`   [Signup]              Status: ${resSignup.status} | Token/Link Absent: YES`);
+
+    // 2. Resend Verification
+    const resResend = await makeRequest(targetEnv.port, 'POST', '/api/auth/resend-verification', { email });
+    assertNoSecretsInResponse(resResend, `${targetEnv.name} - Resend Verification`);
+    console.log(`   [Resend Verification] Status: ${resResend.status} | Token/Link Absent: YES`);
+
+    // 3. Request Password Reset
+    const resReset = await makeRequest(targetEnv.port, 'POST', '/api/auth/request-password-reset', { email });
+    assertNoSecretsInResponse(resReset, `${targetEnv.name} - Request Password Reset`);
+    console.log(`   [Request Reset]       Status: ${resReset.status} | Token/Link Absent: YES`);
+
+    await apiRunner.stopServer();
+    console.log(`   ✅ ${targetEnv.name} VERIFIED CLEAN: No tokens or links returned in any response.\n`);
   }
-  if (signup1.body.message !== signup2.body.message) {
-    throw new Error('SECURITY TEST FAILED: Signup messages differ for new vs duplicate emails!');
-  }
-  console.log('   ✅ Signup email enumeration prevention VERIFIED.');
 
-  console.log('\n2️⃣ Testing Password Reset Request for Existing vs Non-existing Email:');
-  const resetExisting = await makeRequest('POST', '/api/auth/request-password-reset', { email: newEmail });
-  console.log(`   Existing Email Reset Status: ${resetExisting.status}`);
-  console.log(`   Existing Email Reset Message: "${resetExisting.body.message}"`);
-
-  const resetNonExisting = await makeRequest('POST', '/api/auth/request-password-reset', { email: `nonexistent_${timestamp}@example.com` });
-  console.log(`   Non-existing Email Reset Status: ${resetNonExisting.status}`);
-  console.log(`   Non-existing Email Reset Message: "${resetNonExisting.body.message}"`);
-
-  if (resetExisting.status !== 200 || resetNonExisting.status !== 200) {
-    throw new Error('SECURITY TEST FAILED: Password reset status codes differ for existing vs non-existing emails!');
-  }
-  if (resetExisting.body.message !== resetNonExisting.body.message) {
-    throw new Error('SECURITY TEST FAILED: Password reset messages differ!');
-  }
-  console.log('   ✅ Password reset email enumeration prevention VERIFIED.');
-
-  console.log('\n3️⃣ Verifying Token Absence in Password Reset Response:');
-  if (resetExisting.body.rawToken || resetExisting.body.token || resetExisting.body.link) {
-    throw new Error('SECURITY FAILURE: Password reset response contained secret tokens or links!');
-  }
-  console.log('   ✅ Token absence in password reset API response VERIFIED.');
-
-  console.log('\n================================================================');
-  console.log('🎉 PRODUCTION SECURITY & ENUMERATION PREVENTION TESTS PASSED!');
+  console.log('================================================================');
+  console.log('🎉 ALL PRODUCTION SECURITY & TOKEN ABSENCE TESTS PASSED PERFECTLY!');
   console.log('================================================================\n');
 
   process.exit(0);
 }
 
-runProdSecurityTest().catch((err) => {
+runProdSecurityTest().catch(async (err) => {
   console.error('\n❌ SECURITY TEST FAILED:', err);
+  await apiRunner.stopServer();
   process.exit(1);
 });

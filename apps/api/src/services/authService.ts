@@ -1,8 +1,27 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { authDal } from '../dal/authDal';
-import { emailService } from './emailService';
 import { config } from '../config/env';
+
+// Dummy bcrypt hash for constant-time comparison when email is unknown (Item 9)
+const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
+
+// Progressive failed login attempts tracker per hash(email + IP) (Item 4)
+const failedAccountAttempts = new Map<string, { count: number; lastFailedAt: number }>();
+
+function getProgressiveDelayMs(count: number): number {
+  if (count <= 3) return 0;
+  if (count === 4) return 1000;
+  if (count === 5) return 2000;
+  if (count === 6) return 4000;
+  return 8000;
+}
+
+export function isValidEmailFormat(email: string): boolean {
+  if (!email || email.length > 255) return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
 
 export function hashToken(rawToken: string): string {
   return crypto.createHash('sha256').update(rawToken).digest('hex');
@@ -13,80 +32,167 @@ export function generateOpaqueToken(): string {
 }
 
 export class AuthService {
-  async signup(email: string, password: string): Promise<{ message: string; rawToken?: string }> {
-    if (!password || password.length < 10) {
-      throw new Error('Password must be at least 10 characters long.');
+  async signup(email: string, password: string): Promise<{ message: string }> {
+    try {
+      if (!isValidEmailFormat(email)) {
+        throw new Error('Invalid email address format.');
+      }
+
+      const passwordBytes = Buffer.byteLength(password, 'utf8');
+      if (password.length < 10) {
+        throw new Error('Password must be at least 10 characters long.');
+      }
+      if (passwordBytes > 72) {
+        throw new Error('Password exceeds maximum length of 72 bytes.');
+      }
+
+      const trimmedEmail = email.toLowerCase().trim();
+      const existing = await authDal.findUserByEmail(trimmedEmail);
+
+      const genericResponse = {
+        message: 'If your email is valid, a verification link has been sent.',
+      };
+
+      if (existing) {
+        // Item 5 & 6: Run dummy bcrypt hash for timing parity with new signup (~100ms)
+        await bcrypt.hash(password, 10);
+
+        // Item 5: Existing account signup handling
+        if (!existing.is_verified) {
+          // Unverified: Invalidate old tokens & enqueue fresh verification email
+          await authDal.deleteEmailVerificationTokens(existing.id);
+          const rawVerificationToken = generateOpaqueToken();
+          const tokenHash = hashToken(rawVerificationToken);
+          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+          const verificationId = crypto.randomUUID();
+
+          await authDal.createEmailVerificationToken(verificationId, existing.id, tokenHash, expiresAt);
+          const verifyUrl = `${config.appUrl}/verify-email?token=${rawVerificationToken}`;
+
+          await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'verification', trimmedEmail, {
+            token: rawVerificationToken,
+            url: verifyUrl,
+          });
+        } else {
+          // Verified: Send "already registered" email with login & reset links without overwriting password
+          const loginUrl = `${config.appUrl}/login`;
+          const resetUrl = `${config.appUrl}/reset-password`;
+
+          await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'already_registered', trimmedEmail, {
+            loginUrl,
+            resetUrl,
+          });
+        }
+
+        return genericResponse;
+      }
+
+      // New account creation
+      const userId = crypto.randomUUID();
+      const passwordHash = await bcrypt.hash(password, 10);
+      await authDal.createUser(userId, trimmedEmail, passwordHash);
+
+      const rawVerificationToken = generateOpaqueToken();
+      const tokenHash = hashToken(rawVerificationToken);
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const verificationId = crypto.randomUUID();
+
+      await authDal.createEmailVerificationToken(verificationId, userId, tokenHash, expiresAt);
+      const verifyUrl = `${config.appUrl}/verify-email?token=${rawVerificationToken}`;
+
+      await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'verification', trimmedEmail, {
+        token: rawVerificationToken,
+        url: verifyUrl,
+      });
+
+      return genericResponse;
+    } catch (error: any) {
+      // Item 10: Log raw error server-side, return generic sanitized error to client
+      console.error('[SIGNUP ERROR DETAILS]', error);
+      if (error.message.includes('at least 10 characters') || error.message.includes('72 bytes') || error.message.includes('Invalid email')) {
+        throw error;
+      }
+      throw new Error('Signup failed. Please try again later.');
     }
-
-    const trimmedEmail = email.toLowerCase().trim();
-    const existing = await authDal.findUserByEmail(trimmedEmail);
-
-    if (existing) {
-      // Return exact same message and status shape to prevent email enumeration
-      return { message: 'If your email is valid, a verification link has been sent.' };
-    }
-
-    const userId = crypto.randomUUID();
-    const passwordHash = await bcrypt.hash(password, 10);
-    await authDal.createUser(userId, trimmedEmail, passwordHash);
-
-    // Create verification token
-    const rawVerificationToken = generateOpaqueToken();
-    const tokenHash = hashToken(rawVerificationToken);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-    const verificationId = crypto.randomUUID();
-
-    await authDal.createEmailVerificationToken(
-      verificationId,
-      userId,
-      tokenHash,
-      expiresAt
-    );
-
-    const verifyUrl = `${config.appUrl}/verify-email?token=${rawVerificationToken}`;
-    await emailService.sendVerificationEmail(trimmedEmail, rawVerificationToken, verifyUrl);
-
-    const response: { message: string; rawToken?: string } = {
-      message: 'If your email is valid, a verification link has been sent.',
-    };
-
-    // SERVER-SIDE GATED DEV HELPER (Item 2)
-    // Only attach rawToken if server is running strictly in development environment
-    if (config.env === 'development') {
-      response.rawToken = rawVerificationToken;
-    }
-
-    return response;
   }
 
   async verifyEmail(rawToken: string): Promise<boolean> {
     const tokenHash = hashToken(rawToken);
-    const record = await authDal.findEmailVerificationToken(tokenHash);
+    // Item 8: Single atomic UPDATE consumption requiring unexpired & unused token
+    const result = await authDal.consumeEmailVerificationToken(tokenHash);
+    return result.success;
+  }
 
-    if (!record) {
-      return false;
+  async resendVerification(email: string): Promise<string> {
+    const genericMsg = 'If an unverified account exists with that email, a verification link has been sent.';
+    if (!isValidEmailFormat(email)) return genericMsg;
+
+    const trimmedEmail = email.toLowerCase().trim();
+    const user = await authDal.findUserByEmail(trimmedEmail);
+
+    if (user && !user.is_verified) {
+      await authDal.deleteEmailVerificationTokens(user.id);
+      const rawVerificationToken = generateOpaqueToken();
+      const tokenHash = hashToken(rawVerificationToken);
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const verificationId = crypto.randomUUID();
+
+      await authDal.createEmailVerificationToken(verificationId, user.id, tokenHash, expiresAt);
+      const verifyUrl = `${config.appUrl}/verify-email?token=${rawVerificationToken}`;
+
+      await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'verification', trimmedEmail, {
+        token: rawVerificationToken,
+        url: verifyUrl,
+      });
     }
 
-    await authDal.setUserVerified(record.user_id);
-    await authDal.markEmailVerificationTokenUsed(record.id);
-    return true;
+    return genericMsg;
   }
 
   async login(
     email: string,
-    password: string
+    password: string,
+    clientIp: string = '127.0.0.1'
   ): Promise<{ rawToken: string; userId: string } | { error: string }> {
     const trimmedEmail = email.toLowerCase().trim();
+    const trackKey = crypto.createHash('sha256').update(`${trimmedEmail}:${clientIp}`).digest('hex');
+
+    // Item 13: Validate password byte length
+    const passwordBytes = Buffer.byteLength(password, 'utf8');
+    if (passwordBytes > 72) {
+      return { error: 'Invalid credentials.' };
+    }
+
+    // Item 4: Progressive lockout delay based on sha256(email + IP)
+    const entry = failedAccountAttempts.get(trackKey) || { count: 0, lastFailedAt: 0 };
+    const delayMs = getProgressiveDelayMs(entry.count);
+
+    if (entry.count > 0 && Date.now() < entry.lastFailedAt + delayMs) {
+      const waitMs = (entry.lastFailedAt + delayMs) - Date.now();
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+
     const user = await authDal.findUserByEmail(trimmedEmail);
 
     if (!user) {
+      // Item 9: Constant-time dummy compare when email is unknown
+      await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
+      entry.count++;
+      entry.lastFailedAt = Date.now();
+      failedAccountAttempts.set(trackKey, entry);
       return { error: 'Invalid credentials.' };
     }
 
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
+      entry.count++;
+      entry.lastFailedAt = Date.now();
+      failedAccountAttempts.set(trackKey, entry);
       return { error: 'Invalid credentials.' };
     }
+
+    // Reset failed attempts on success
+    failedAccountAttempts.delete(trackKey);
 
     if (!user.is_verified) {
       return { error: 'Email is not verified. Please verify your email address before logging in.' };
@@ -124,19 +230,16 @@ export class AuthService {
 
     const now = new Date();
 
-    // Check absolute max lifetime
     if (now > new Date(session.expires_at)) {
       await authDal.deleteSession(session.id);
       return null;
     }
 
-    // Check idle timeout
     if (now > new Date(session.idle_expires_at)) {
       await authDal.deleteSession(session.id);
       return null;
     }
 
-    // Item 3: REVERSED DEFAULT - Requests MUST NOT extend idle timeout unless explicitly on activity allowlist
     if (isActivityRoute) {
       const nextIdleMs = Date.now() + config.session.idleTimeoutMinutes * 60 * 1000;
       const maxExpiryMs = new Date(session.expires_at).getTime();
@@ -155,6 +258,9 @@ export class AuthService {
   }
 
   async requestPasswordReset(email: string): Promise<string> {
+    const genericMsg = 'If an account exists with that email, a password reset link has been sent.';
+    if (!isValidEmailFormat(email)) return genericMsg;
+
     const trimmedEmail = email.toLowerCase().trim();
     const user = await authDal.findUserByEmail(trimmedEmail);
 
@@ -164,39 +270,43 @@ export class AuthService {
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
       const resetId = crypto.randomUUID();
 
-      await authDal.createPasswordResetToken(
-        resetId,
-        user.id,
-        tokenHash,
-        expiresAt
-      );
-
+      await authDal.createPasswordResetToken(resetId, user.id, tokenHash, expiresAt);
       const resetUrl = `${config.appUrl}/reset-password?token=${rawToken}`;
-      await emailService.sendPasswordResetEmail(trimmedEmail, rawToken, resetUrl);
+
+      // Item 6: Enqueue outbox email
+      await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'password_reset', trimmedEmail, {
+        token: rawToken,
+        url: resetUrl,
+      });
+    } else {
+      // Item 6: Dummy DB query for timing parity (~5ms) when email is unknown
+      const dummyToken = generateOpaqueToken();
+      hashToken(dummyToken);
+      await authDal.isEmailSuppressed('dummy_timing_check@localhost');
     }
 
-    return 'If an account exists with that email, a password reset link has been sent.';
+    return genericMsg;
   }
 
   async resetPassword(rawToken: string, newPassword: string): Promise<boolean> {
-    if (!newPassword || newPassword.length < 10) {
+    const passwordBytes = Buffer.byteLength(newPassword, 'utf8');
+    if (newPassword.length < 10) {
       throw new Error('Password must be at least 10 characters long.');
+    }
+    if (passwordBytes > 72) {
+      throw new Error('Password exceeds maximum length of 72 bytes.');
     }
 
     const tokenHash = hashToken(rawToken);
-    const record = await authDal.findPasswordResetToken(tokenHash);
-
-    if (!record) {
-      return false;
-    }
-
-    const passwordHash = await bcrypt.hash(newPassword, 10);
-    await authDal.updateUserPassword(record.user_id, passwordHash);
-    await authDal.markPasswordResetTokenUsed(record.id);
-    await authDal.deleteUserSessions(record.user_id);
-
-    return true;
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    // Item 8: Single atomic UPDATE consumption
+    const result = await authDal.consumePasswordResetToken(tokenHash, newPasswordHash);
+    return result.success;
   }
+}
+
+function rawVerificationTokenOrReset(rawToken: string) {
+  return rawToken;
 }
 
 export const authService = new AuthService();

@@ -7,14 +7,12 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState<string | null>(null);
-  const [devToken, setDevToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
-    setDevToken(null);
     setError(null);
 
     if (password.length < 10) {
@@ -37,9 +35,6 @@ export default function SignupPage() {
       }
 
       setMessage(data.message);
-      if (data.rawToken) {
-        setDevToken(data.rawToken);
-      }
       setEmail('');
       setPassword('');
     } catch (err: any) {
@@ -53,15 +48,6 @@ export default function SignupPage() {
     <div className="container">
       <h2>Sign Up</h2>
       {message && <div className="alert-info">{message}</div>}
-      {devToken && (
-        <div className="alert-info" style={{ marginTop: '8px', background: '#fef3c7', color: '#92400e' }}>
-          <strong>[Dev Mode Helper]</strong> Verification token created:<br />
-          <code style={{ wordBreak: 'break-all' }}>{devToken}</code><br />
-          <Link href={`/verify-email?token=${devToken}`} style={{ fontWeight: 'bold', textDecoration: 'underline' }}>
-            Click here to verify email now →
-          </Link>
-        </div>
-      )}
       {error && <div className="alert-error">{error}</div>}
 
       <form onSubmit={handleSubmit}>
