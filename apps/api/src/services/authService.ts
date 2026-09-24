@@ -59,29 +59,13 @@ export class AuthService {
 
         // Item 5: Existing account signup handling
         if (!existing.is_verified) {
-          // Unverified: Invalidate old tokens & enqueue fresh verification email
-          await authDal.deleteEmailVerificationTokens(existing.id);
-          const rawVerificationToken = generateOpaqueToken();
-          const tokenHash = hashToken(rawVerificationToken);
-          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-          const verificationId = crypto.randomUUID();
-
-          await authDal.createEmailVerificationToken(verificationId, existing.id, tokenHash, expiresAt);
-          const verifyUrl = `${config.appUrl}/verify-email?token=${rawVerificationToken}`;
-
+          // Unverified: Enqueue outbox email with userId only (token created at send time in worker)
           await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'verification', trimmedEmail, {
-            token: rawVerificationToken,
-            url: verifyUrl,
+            userId: existing.id,
           });
         } else {
           // Verified: Send "already registered" email with login & reset links without overwriting password
-          const loginUrl = `${config.appUrl}/login`;
-          const resetUrl = `${config.appUrl}/reset-password`;
-
-          await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'already_registered', trimmedEmail, {
-            loginUrl,
-            resetUrl,
-          });
+          await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'already_registered', trimmedEmail, {});
         }
 
         return genericResponse;
@@ -92,17 +76,9 @@ export class AuthService {
       const passwordHash = await bcrypt.hash(password, 10);
       await authDal.createUser(userId, trimmedEmail, passwordHash);
 
-      const rawVerificationToken = generateOpaqueToken();
-      const tokenHash = hashToken(rawVerificationToken);
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      const verificationId = crypto.randomUUID();
-
-      await authDal.createEmailVerificationToken(verificationId, userId, tokenHash, expiresAt);
-      const verifyUrl = `${config.appUrl}/verify-email?token=${rawVerificationToken}`;
-
+      // Item 4: Enqueue outbox email with userId only
       await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'verification', trimmedEmail, {
-        token: rawVerificationToken,
-        url: verifyUrl,
+        userId,
       });
 
       return genericResponse;
@@ -131,18 +107,9 @@ export class AuthService {
     const user = await authDal.findUserByEmail(trimmedEmail);
 
     if (user && !user.is_verified) {
-      await authDal.deleteEmailVerificationTokens(user.id);
-      const rawVerificationToken = generateOpaqueToken();
-      const tokenHash = hashToken(rawVerificationToken);
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      const verificationId = crypto.randomUUID();
-
-      await authDal.createEmailVerificationToken(verificationId, user.id, tokenHash, expiresAt);
-      const verifyUrl = `${config.appUrl}/verify-email?token=${rawVerificationToken}`;
-
+      // Item 4: Enqueue outbox with userId only
       await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'verification', trimmedEmail, {
-        token: rawVerificationToken,
-        url: verifyUrl,
+        userId: user.id,
       });
     }
 
@@ -265,18 +232,9 @@ export class AuthService {
     const user = await authDal.findUserByEmail(trimmedEmail);
 
     if (user) {
-      const rawToken = generateOpaqueToken();
-      const tokenHash = hashToken(rawToken);
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-      const resetId = crypto.randomUUID();
-
-      await authDal.createPasswordResetToken(resetId, user.id, tokenHash, expiresAt);
-      const resetUrl = `${config.appUrl}/reset-password?token=${rawToken}`;
-
-      // Item 6: Enqueue outbox email
+      // Item 4: Enqueue outbox email with userId only (token created at send time in worker)
       await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'password_reset', trimmedEmail, {
-        token: rawToken,
-        url: resetUrl,
+        userId: user.id,
       });
     } else {
       // Item 6: Dummy DB query for timing parity (~5ms) when email is unknown
