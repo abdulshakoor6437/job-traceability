@@ -14,6 +14,7 @@ export function getDbPool(): Pool {
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
+      timezone: 'Z', // Item 7: Enforce UTC timezone on pool
     });
   }
   return pool;

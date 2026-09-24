@@ -8,6 +8,14 @@ export class ApiRunnerHelper {
   async startServer(port: number, envVars: Record<string, string>): Promise<void> {
     await this.stopServer();
 
+    try {
+      const { getDbPool } = require('../../src/dal/db');
+      const pool = getDbPool();
+      await pool.execute('DELETE FROM rate_limits');
+    } catch {
+      // Ignore if table does not exist yet
+    }
+
     const mergedEnv = {
       ...process.env,
       PORT: port.toString(),

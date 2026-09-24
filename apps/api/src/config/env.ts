@@ -48,8 +48,8 @@ export const config = {
 export function validateConfig(): void {
   const errors: string[] = [];
 
-  // Item 2: Database password secret validation
-  if (!config.db.password && config.env !== 'development') {
+  // Item 2: Database password secret validation (refuse to start if missing or empty)
+  if (!config.db.password) {
     errors.push('DB_PASSWORD environment variable is missing or empty.');
   }
 

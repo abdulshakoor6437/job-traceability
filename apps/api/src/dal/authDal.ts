@@ -45,18 +45,29 @@ export interface OutboxRow extends RowDataPacket {
 }
 
 export class AuthDal {
+  // Item 7: Signup wrapped in transaction (user plus user_settings)
   async createUser(id: string, email: string, passwordHash: string): Promise<void> {
     const pool = getDbPool();
-    await pool.execute(
-      `INSERT INTO users (id, email, password_hash, is_verified) VALUES (?, ?, ?, 0)`,
-      [id, email.toLowerCase().trim(), passwordHash]
-    );
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.execute(
+        `INSERT INTO users (id, email, password_hash, is_verified) VALUES (?, ?, ?, 0)`,
+        [id, email.toLowerCase().trim(), passwordHash]
+      );
 
-    const settingsId = crypto.randomUUID();
-    await pool.execute(
-      `INSERT INTO user_settings (id, user_id, timezone) VALUES (?, ?, 'UTC') ON DUPLICATE KEY UPDATE user_id = user_id`,
-      [settingsId, id]
-    );
+      const settingsId = crypto.randomUUID();
+      await conn.execute(
+        `INSERT INTO user_settings (id, user_id, timezone) VALUES (?, ?, 'UTC') ON DUPLICATE KEY UPDATE user_id = user_id`,
+        [settingsId, id]
+      );
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
   }
 
   async findUserByEmail(email: string): Promise<UserRow | null> {
@@ -115,26 +126,46 @@ export class AuthDal {
     return rows.length > 0 ? rows[0] : null;
   }
 
-  // Atomic consumption of verification token (Item 8)
+  // Item 7: Email verification wrapped in transaction (token plus user)
   async consumeEmailVerificationToken(tokenHash: string): Promise<{ success: boolean; userId?: string }> {
     const pool = getDbPool();
-    const record = await this.findEmailVerificationToken(tokenHash);
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
 
-    if (!record) {
+      const [rows] = await conn.query<TokenRow[]>(
+        `SELECT * FROM email_verifications WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW() LIMIT 1 FOR UPDATE`,
+        [tokenHash]
+      );
+
+      if (rows.length === 0) {
+        await conn.rollback();
+        return { success: false };
+      }
+
+      const record = rows[0];
+      const [result] = await conn.execute<ResultSetHeader>(
+        `UPDATE email_verifications SET used_at = NOW() WHERE id = ? AND used_at IS NULL`,
+        [record.id]
+      );
+
+      if (result.affectedRows === 1) {
+        await conn.execute(
+          `UPDATE users SET is_verified = 1 WHERE id = ?`,
+          [record.user_id]
+        );
+        await conn.commit();
+        return { success: true, userId: record.user_id };
+      }
+
+      await conn.rollback();
       return { success: false };
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
     }
-
-    const [result] = await pool.execute<ResultSetHeader>(
-      `UPDATE email_verifications SET used_at = NOW() WHERE id = ? AND used_at IS NULL AND expires_at > NOW()`,
-      [record.id]
-    );
-
-    if (result.affectedRows === 1) {
-      await this.setUserVerified(record.user_id);
-      return { success: true, userId: record.user_id };
-    }
-
-    return { success: false };
   }
 
   async createPasswordResetToken(
@@ -159,27 +190,50 @@ export class AuthDal {
     return rows.length > 0 ? rows[0] : null;
   }
 
-  // Atomic consumption of password reset token (Item 8)
+  // Item 7: Password reset wrapped in transaction (token plus password plus session deletion)
   async consumePasswordResetToken(tokenHash: string, newPasswordHash: string): Promise<{ success: boolean; userId?: string }> {
     const pool = getDbPool();
-    const record = await this.findPasswordResetToken(tokenHash);
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
 
-    if (!record) {
+      const [rows] = await conn.query<TokenRow[]>(
+        `SELECT * FROM password_resets WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW() LIMIT 1 FOR UPDATE`,
+        [tokenHash]
+      );
+
+      if (rows.length === 0) {
+        await conn.rollback();
+        return { success: false };
+      }
+
+      const record = rows[0];
+      const [result] = await conn.execute<ResultSetHeader>(
+        `UPDATE password_resets SET used_at = NOW() WHERE id = ? AND used_at IS NULL`,
+        [record.id]
+      );
+
+      if (result.affectedRows === 1) {
+        await conn.execute(
+          `UPDATE users SET password_hash = ? WHERE id = ?`,
+          [newPasswordHash, record.user_id]
+        );
+        await conn.execute(
+          `DELETE FROM user_sessions WHERE user_id = ?`,
+          [record.user_id]
+        );
+        await conn.commit();
+        return { success: true, userId: record.user_id };
+      }
+
+      await conn.rollback();
       return { success: false };
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
     }
-
-    const [result] = await pool.execute<ResultSetHeader>(
-      `UPDATE password_resets SET used_at = NOW() WHERE id = ? AND used_at IS NULL AND expires_at > NOW()`,
-      [record.id]
-    );
-
-    if (result.affectedRows === 1) {
-      await this.updateUserPassword(record.user_id, newPasswordHash);
-      await this.deleteUserSessions(record.user_id);
-      return { success: true, userId: record.user_id };
-    }
-
-    return { success: false };
   }
 
   async updateUserPassword(userId: string, passwordHash: string): Promise<void> {
@@ -326,6 +380,86 @@ export class AuthDal {
     );
     return result.affectedRows;
   }
+  // Item 4 & 5: Rate Limiter & Email Cap DAL Methods
+  private rateLimitsTableInitialized = false;
+
+  private async ensureRateLimitsTable(): Promise<void> {
+    if (this.rateLimitsTableInitialized) return;
+    const pool = getDbPool();
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS rate_limits (
+        key_name VARCHAR(191) NOT NULL PRIMARY KEY,
+        hits INT NOT NULL DEFAULT 1,
+        expires_at DATETIME NOT NULL,
+        INDEX idx_rate_limits_expires (expires_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+    this.rateLimitsTableInitialized = true;
+  }
+
+  async checkAndIncrementRateLimit(
+    bucket: string,
+    identifier: string,
+    maxHits: number,
+    windowSeconds: number
+  ): Promise<{ allowed: boolean; retryAfterSeconds: number; currentHits: number }> {
+    await this.ensureRateLimitsTable();
+    const pool = getDbPool();
+    const keyName = `${bucket}:${identifier}`.toLowerCase();
+    const nowMs = Date.now();
+
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT hits, UNIX_TIMESTAMP(expires_at) as expires_ts FROM rate_limits WHERE key_name = ? AND expires_at > NOW() LIMIT 1',
+      [keyName]
+    );
+
+    if (rows.length === 0) {
+      const expiresAt = new Date(nowMs + windowSeconds * 1000);
+      await pool.execute(
+        `INSERT INTO rate_limits (key_name, hits, expires_at) VALUES (?, 1, ?)
+         ON DUPLICATE KEY UPDATE hits = 1, expires_at = ?`,
+        [keyName, expiresAt, expiresAt]
+      );
+      return { allowed: true, retryAfterSeconds: 0, currentHits: 1 };
+    }
+
+    const record = rows[0];
+    const expiresTsMs = record.expires_ts * 1000;
+    const retryAfterSeconds = Math.max(1, Math.ceil((expiresTsMs - nowMs) / 1000));
+
+    if (record.hits >= maxHits) {
+      return { allowed: false, retryAfterSeconds, currentHits: record.hits };
+    }
+
+    await pool.execute('UPDATE rate_limits SET hits = hits + 1 WHERE key_name = ?', [keyName]);
+    return { allowed: true, retryAfterSeconds: 0, currentHits: record.hits + 1 };
+  }
+
+  async checkRecipientEmailCap(
+    recipient: string
+  ): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
+    const pool = getDbPool();
+    const trimmed = recipient.toLowerCase().trim();
+
+    const [hourlyRows] = await pool.query<RowDataPacket[]>(
+      "SELECT COUNT(*) as cnt FROM email_outbox WHERE recipient = ? AND created_at >= NOW() - INTERVAL 1 HOUR",
+      [trimmed]
+    );
+    if (hourlyRows[0]?.cnt >= 5) {
+      return { allowed: false, retryAfterSeconds: 3600 };
+    }
+
+    const [dailyRows] = await pool.query<RowDataPacket[]>(
+      "SELECT COUNT(*) as cnt FROM email_outbox WHERE recipient = ? AND created_at >= NOW() - INTERVAL 1 DAY",
+      [trimmed]
+    );
+    if (dailyRows[0]?.cnt >= 20) {
+      return { allowed: false, retryAfterSeconds: 86400 };
+    }
+
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
 }
 
 export const authDal = new AuthDal();
+

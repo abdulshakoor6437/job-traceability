@@ -83,7 +83,19 @@ export class AuthService {
 
       return genericResponse;
     } catch (error: any) {
-      // Item 10: Log raw error server-side, return generic sanitized error to client
+      // Item 7: Catch duplicate-key errors on concurrent signup and treat as existing account
+      if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062 || error.message?.includes('ER_DUP_ENTRY')) {
+        const existing = await authDal.findUserByEmail(trimmedEmail);
+        if (existing) {
+          if (!existing.is_verified) {
+            await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'verification', trimmedEmail, { userId: existing.id });
+          } else {
+            await authDal.enqueueOutboxEmail(crypto.randomUUID(), 'already_registered', trimmedEmail, {});
+          }
+          return genericResponse;
+        }
+      }
+
       console.error('[SIGNUP ERROR DETAILS]', error);
       if (error.message.includes('at least 10 characters') || error.message.includes('72 bytes') || error.message.includes('Invalid email')) {
         throw error;
