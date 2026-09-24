@@ -1,14 +1,20 @@
 import { Router, Request, Response } from 'express';
 import { authService } from '../services/authService';
-import { authDal } from '../dal/authDal';
-import { authRateLimiter } from '../middleware/rateLimiter';
+import {
+  signupRateLimiter,
+  loginRateLimiter,
+  resetRequestRateLimiter,
+  resendVerificationRateLimiter,
+  verifyEmailRateLimiter,
+  resetPasswordRateLimiter,
+} from '../middleware/rateLimiter';
 import { requireAuth, AuthenticatedRequest } from '../middleware/authMiddleware';
 import { config } from '../config/env';
 
 const router = Router();
 
-// Signup
-router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
+// Signup (Item 5c: Dedicated signup rate limiter)
+router.post('/signup', signupRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -23,8 +29,8 @@ router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
   }
 });
 
-// Verify Email
-router.post('/verify-email', async (req: Request, res: Response) => {
+// Verify Email (Item 5c: Dedicated verify email rate limiter)
+router.post('/verify-email', verifyEmailRateLimiter, async (req: Request, res: Response) => {
   try {
     const { token } = req.body;
     if (!token) {
@@ -44,8 +50,8 @@ router.post('/verify-email', async (req: Request, res: Response) => {
   }
 });
 
-// Resend Verification Email (Item 7)
-router.post('/resend-verification', authRateLimiter, async (req: Request, res: Response) => {
+// Resend Verification Email (Item 5c: Dedicated resend verification rate limiter)
+router.post('/resend-verification', resendVerificationRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
     if (!email) {
@@ -60,8 +66,8 @@ router.post('/resend-verification', authRateLimiter, async (req: Request, res: R
   }
 });
 
-// Login (Item 12: Cookie ONLY, session token NOT returned in JSON body)
-router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
+// Login (Item 5a: Client IP from req.ip only)
+router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -69,7 +75,7 @@ router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
       return;
     }
 
-    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.ip || req.socket.remoteAddress || '127.0.0.1';
+    const clientIp = req.ip || '127.0.0.1';
     const result = await authService.login(email, password, clientIp);
     if ('error' in result) {
       res.status(401).json({ message: result.error });
@@ -85,7 +91,6 @@ router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
       path: '/',
     });
 
-    // Item 12: Session token is NOT returned in JSON body.
     res.json({
       message: 'Logged in successfully.',
       userId: result.userId,
@@ -118,8 +123,8 @@ router.post('/logout', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-// Request Password Reset
-router.post('/request-password-reset', authRateLimiter, async (req: Request, res: Response) => {
+// Request Password Reset (Item 5c: Dedicated reset request rate limiter)
+router.post('/request-password-reset', resetRequestRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
     if (!email) {
@@ -134,8 +139,8 @@ router.post('/request-password-reset', authRateLimiter, async (req: Request, res
   }
 });
 
-// Reset Password
-router.post('/reset-password', async (req: Request, res: Response) => {
+// Reset Password (Item 5c: Dedicated reset password rate limiter)
+router.post('/reset-password', resetPasswordRateLimiter, async (req: Request, res: Response) => {
   try {
     const { token, newPassword } = req.body;
     if (!token || !newPassword) {

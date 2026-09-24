@@ -14,6 +14,9 @@ validateConfig();
 
 const app = express();
 
+// Item 5a: Set Express trust proxy according to TRUST_PROXY environment setting
+app.set('trust proxy', config.trustProxy);
+
 app.use(
   cors({
     origin: config.appUrl,
