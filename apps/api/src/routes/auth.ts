@@ -77,6 +77,11 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
 
     const clientIp = req.ip || '127.0.0.1';
     const result = await authService.login(email, password, clientIp);
+    if ('rateLimited' in result && result.rateLimited) {
+      res.setHeader('Retry-After', result.retryAfterSeconds.toString());
+      res.status(429).json({ message: 'Too many requests. Please try again later.' });
+      return;
+    }
     if ('error' in result) {
       res.status(401).json({ message: result.error });
       return;

@@ -397,6 +397,35 @@ export class AuthDal {
     this.rateLimitsTableInitialized = true;
   }
 
+  async checkRateLimit(
+    bucket: string,
+    identifier: string,
+    maxHits: number
+  ): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
+    await this.ensureRateLimitsTable();
+    const pool = getDbPool();
+    const keyName = `${bucket}:${identifier}`.toLowerCase();
+    const nowMs = Date.now();
+
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT hits, UNIX_TIMESTAMP(expires_at) as expires_ts FROM rate_limits WHERE key_name = ? AND expires_at > NOW() LIMIT 1',
+      [keyName]
+    );
+
+    if (rows.length === 0) {
+      return { allowed: true, retryAfterSeconds: 0 };
+    }
+
+    const record = rows[0];
+    if (record.hits >= maxHits) {
+      const expiresTsMs = record.expires_ts * 1000;
+      const retryAfterSeconds = Math.max(1, Math.ceil((expiresTsMs - nowMs) / 1000));
+      return { allowed: false, retryAfterSeconds };
+    }
+
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
+
   async checkAndIncrementRateLimit(
     bucket: string,
     identifier: string,
@@ -433,6 +462,16 @@ export class AuthDal {
 
     await pool.execute('UPDATE rate_limits SET hits = hits + 1 WHERE key_name = ?', [keyName]);
     return { allowed: true, retryAfterSeconds: 0, currentHits: record.hits + 1 };
+  }
+
+  async recordFailedLogin(identifier: string, maxHits: number = 7, windowSeconds: number = 900): Promise<void> {
+    await this.checkAndIncrementRateLimit('login_account', identifier, maxHits, windowSeconds);
+  }
+
+  async clearFailedLogin(identifier: string): Promise<void> {
+    const pool = getDbPool();
+    const keyName = `login_account:${identifier}`.toLowerCase();
+    await pool.execute('DELETE FROM rate_limits WHERE key_name = ?', [keyName]);
   }
 
   async checkRecipientEmailCap(

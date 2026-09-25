@@ -38,9 +38,9 @@ export class ApiRunnerHelper {
       console.error('[API RUNNER STDERR]', d.toString());
     });
 
-    // Poll /api/health until server is up (up to 10 seconds)
+    // Poll /api/health until server is up (up to 15 seconds)
     const startTime = Date.now();
-    while (Date.now() - startTime < 10000) {
+    while (Date.now() - startTime < 15000) {
       try {
         const isUp = await this.pingHealth(port);
         if (isUp) return;

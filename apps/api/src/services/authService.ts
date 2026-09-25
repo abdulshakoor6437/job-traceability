@@ -6,17 +6,6 @@ import { config } from '../config/env';
 // Dummy bcrypt hash for constant-time comparison when email is unknown (Item 9)
 const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
-// Progressive failed login attempts tracker per hash(email + IP) (Item 4)
-const failedAccountAttempts = new Map<string, { count: number; lastFailedAt: number }>();
-
-function getProgressiveDelayMs(count: number): number {
-  if (count <= 3) return 0;
-  if (count === 4) return 1000;
-  if (count === 5) return 2000;
-  if (count === 6) return 4000;
-  return 8000;
-}
-
 export function isValidEmailFormat(email: string): boolean {
   if (!email || email.length > 255) return false;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -132,23 +121,21 @@ export class AuthService {
     email: string,
     password: string,
     clientIp: string = '127.0.0.1'
-  ): Promise<{ rawToken: string; userId: string } | { error: string }> {
+  ): Promise<{ rawToken: string; userId: string } | { error: string } | { rateLimited: true; retryAfterSeconds: number }> {
     const trimmedEmail = email.toLowerCase().trim();
     const trackKey = crypto.createHash('sha256').update(`${trimmedEmail}:${clientIp}`).digest('hex');
+
+    // Item 2: MySQL-backed failed login attempts rate limit check (7 failures in 15 minutes)
+    const accountLimit = await authDal.checkRateLimit('login_account', trackKey, 7);
+    if (!accountLimit.allowed) {
+      return { rateLimited: true, retryAfterSeconds: accountLimit.retryAfterSeconds };
+    }
 
     // Item 13: Validate password byte length
     const passwordBytes = Buffer.byteLength(password, 'utf8');
     if (passwordBytes > 72) {
+      await authDal.recordFailedLogin(trackKey, 7, 900);
       return { error: 'Invalid credentials.' };
-    }
-
-    // Item 4: Progressive lockout delay based on sha256(email + IP)
-    const entry = failedAccountAttempts.get(trackKey) || { count: 0, lastFailedAt: 0 };
-    const delayMs = getProgressiveDelayMs(entry.count);
-
-    if (entry.count > 0 && Date.now() < entry.lastFailedAt + delayMs) {
-      const waitMs = (entry.lastFailedAt + delayMs) - Date.now();
-      await new Promise((resolve) => setTimeout(resolve, waitMs));
     }
 
     const user = await authDal.findUserByEmail(trimmedEmail);
@@ -156,22 +143,18 @@ export class AuthService {
     if (!user) {
       // Item 9: Constant-time dummy compare when email is unknown
       await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
-      entry.count++;
-      entry.lastFailedAt = Date.now();
-      failedAccountAttempts.set(trackKey, entry);
+      await authDal.recordFailedLogin(trackKey, 7, 900);
       return { error: 'Invalid credentials.' };
     }
 
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      entry.count++;
-      entry.lastFailedAt = Date.now();
-      failedAccountAttempts.set(trackKey, entry);
+      await authDal.recordFailedLogin(trackKey, 7, 900);
       return { error: 'Invalid credentials.' };
     }
 
-    // Reset failed attempts on success
-    failedAccountAttempts.delete(trackKey);
+    // Reset failed login rate limit on successful login
+    await authDal.clearFailedLogin(trackKey);
 
     if (!user.is_verified) {
       return { error: 'Email is not verified. Please verify your email address before logging in.' };

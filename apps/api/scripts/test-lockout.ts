@@ -101,6 +101,83 @@ async function runLockoutTest() {
     }
     console.log('    ✅ HTTP 429 & Retry-After header VERIFIED.');
 
+    // 3️⃣ Testing Account Lockout per sha256(email + IP) in MySQL with Immediate 429 & No Sleep Delay (Item 2)
+    console.log('\n[3] Testing Account Lockout per sha256(email + IP) with Immediate 429 & No Sleep Delay...');
+    
+    // Clear rate limits table for clean section 3 test environment
+    const { getDbPool } = require('../src/dal/db');
+    await getDbPool().execute('DELETE FROM rate_limits');
+    
+    // Create a known user first
+    const knownEmail = `lockout_known_${Date.now()}@example.com`;
+    const unknownEmail = `lockout_unknown_${Date.now()}@example.com`;
+    const testPassword = 'Password123!';
+
+    await makeRequest(API_PORT, 'POST', '/api/auth/signup', { email: knownEmail, password: testPassword });
+
+    // Fail 7 times on known email and measure latency
+    for (let i = 1; i <= 7; i++) {
+      const start = Date.now();
+      const res = await makeRequest(API_PORT, 'POST', '/api/auth/login', { email: knownEmail, password: 'WrongPassword!' });
+      const durationMs = Date.now() - start;
+
+      if (durationMs > 500) {
+        throw new Error(`Request ${i} took ${durationMs}ms which indicates an artificial sleep/delay!`);
+      }
+      if (res.status !== 401) {
+        throw new Error(`Expected status 401 for failed attempt ${i}, got ${res.status}`);
+      }
+    }
+
+    // 8th attempt on known email must return 429 immediately
+    const start8 = Date.now();
+    const res8Known = await makeRequest(API_PORT, 'POST', '/api/auth/login', { email: knownEmail, password: 'WrongPassword!' });
+    const dur8Known = Date.now() - start8;
+
+    console.log(`    Known Email 8th Request -> Status: ${res8Known.status} | Latency: ${dur8Known}ms | Retry-After: ${res8Known.headers['retry-after']}`);
+
+    if (res8Known.status !== 429) {
+      throw new Error(`Expected 429 on 8th attempt for known email, got ${res8Known.status}`);
+    }
+    if (!res8Known.headers['retry-after']) {
+      throw new Error('Missing Retry-After header on 429 response for known email!');
+    }
+    if (dur8Known > 100) {
+      throw new Error(`Blocked request took ${dur8Known}ms which indicates unexpected delay!`);
+    }
+
+    // Reset rate_limits table so IP-level rate limit does not block unknown email test
+    await getDbPool().execute('DELETE FROM rate_limits');
+
+    // Fail 7 times on unknown email and measure latency
+    for (let i = 1; i <= 7; i++) {
+      const start = Date.now();
+      const res = await makeRequest(API_PORT, 'POST', '/api/auth/login', { email: unknownEmail, password: 'WrongPassword!' });
+      const durationMs = Date.now() - start;
+
+      if (durationMs > 500) {
+        throw new Error(`Request ${i} took ${durationMs}ms which indicates an artificial sleep/delay!`);
+      }
+      if (res.status !== 401) {
+        throw new Error(`Expected status 401 for failed attempt ${i}, got ${res.status}`);
+      }
+    }
+
+    // 8th attempt on unknown email must return 429 immediately with identical response
+    const start8Un = Date.now();
+    const res8Unknown = await makeRequest(API_PORT, 'POST', '/api/auth/login', { email: unknownEmail, password: 'WrongPassword!' });
+    const dur8Unknown = Date.now() - start8Un;
+
+    console.log(`    Unknown Email 8th Request -> Status: ${res8Unknown.status} | Latency: ${dur8Unknown}ms | Retry-After: ${res8Unknown.headers['retry-after']}`);
+
+    if (res8Unknown.status !== 429) {
+      throw new Error(`Expected 429 on 8th attempt for unknown email, got ${res8Unknown.status}`);
+    }
+    if (JSON.stringify(res8Known.body) !== JSON.stringify(res8Unknown.body)) {
+      throw new Error('Response body mismatch between known and unknown email 429 responses!');
+    }
+    console.log('    ✅ MySQL-backed login lockout & non-blocking immediate 429 VERIFIED.');
+
     await apiRunner.stopServer();
 
     console.log('\n================================================================');

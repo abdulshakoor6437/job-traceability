@@ -25,14 +25,11 @@ function requireWebhookSecret(req: Request, res: Response, next: NextFunction): 
     return;
   }
 
-  // 2. Extract provided secret from X-Webhook-Secret header or Authorization header or query
+  // 2. Extract provided secret from X-Webhook-Secret header or Authorization header ONLY
   let providedSecret = (req.headers['x-webhook-secret'] as string) || '';
   if (!providedSecret && req.headers.authorization) {
     const parts = req.headers.authorization.split(' ');
     providedSecret = parts.length === 2 ? parts[1] : parts[0];
-  }
-  if (!providedSecret && req.query.secret) {
-    providedSecret = req.query.secret as string;
   }
 
   if (!providedSecret) {

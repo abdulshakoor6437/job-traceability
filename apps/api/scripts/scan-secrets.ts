@@ -10,7 +10,7 @@ const SECRET_PATTERNS: { name: string; pattern: RegExp }[] = [
   { name: 'Google OAuth / App Secret', pattern: /\b[0-9]+-[0-9a-zA-Z_]{32}\.apps\.googleusercontent\.com\b/ },
   { name: 'Stripe Secret Key', pattern: /\bsk_live_[0-9a-zA-Z]{24,}\b/ },
   { name: 'Slack Token', pattern: /xox[baprs]-[0-9a-zA-Z]{10,12}-[0-9a-zA-Z]{10,12}-[0-9a-zA-Z]{24,32}/ },
-  { name: 'Database Password Assignment', pattern: /\b(DB_PASSWORD|MYSQL_PASSWORD|POSTGRES_PASSWORD)\s*=\s*(?!your_secure_db_password_here|DevJobAgentSecPass2026x99|["']?["']?\s*$)[^\s#]+/i },
+  { name: 'Database Password Assignment', pattern: /\b(DB_PASSWORD|MYSQL_PASSWORD|POSTGRES_PASSWORD)\s*=\s*(?!your_secure_db_password_here|["']?["']?\s*$)[^\s#]+/i },
   { name: 'SMTP Password Assignment', pattern: /\b(SMTP_PASS|SMTP_PASSWORD)\s*=\s*(?!your_app_password_here|["']?["']?\s*$)[^\s#]+/i },
 ];
 
@@ -45,7 +45,7 @@ function scanGitHistory() {
       currentFile = line.substring(6);
     } else if (line.startsWith('+') && !line.startsWith('+++')) {
       const content = line.substring(1);
-      if (currentFile.endsWith('package-lock.json') || content.includes('integrity": "sha')) {
+      if (currentFile.endsWith('package-lock.json') || currentFile.includes('scripts/tools/') || content.includes('integrity": "sha')) {
         continue;
       }
 

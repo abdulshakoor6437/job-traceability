@@ -1,3 +1,7 @@
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 import http from 'http';
 import { apiRunner } from './test-helpers/apiRunner';
 
@@ -75,6 +79,10 @@ async function runProdSecurityTest() {
   const timestamp = Date.now();
   const password = 'Password123!';
 
+  if (!process.env.DB_PASSWORD) {
+    throw new Error('FATAL: DB_PASSWORD environment variable is not set. test-prod-security.ts requires DB_PASSWORD to be provided in environment.');
+  }
+
   const environments = [
     {
       name: 'Development + Console Mode',
@@ -110,7 +118,7 @@ async function runProdSecurityTest() {
         SMTP_SECURE: 'false',
         SMTP_USER: 'prod_test_smtp_user',
         SMTP_PASSWORD: 'prod_test_smtp_password',
-        DB_PASSWORD: process.env.DB_PASSWORD || 'DevJobAgentSecPass2026x99',
+        DB_PASSWORD: process.env.DB_PASSWORD,
         APP_URL: 'https://staging.jobassistant.com',
         API_URL: 'https://staging-api.jobassistant.com',
         EMAIL_FROM: 'Job Agent <no-reply@staging.jobassistant.com>',
