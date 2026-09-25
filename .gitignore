@@ -6,3 +6,9 @@ dist/
 build/
 .next/
 *.log
+
+# Uploaded files (user data – never commit)
+apps/api/storage/
+
+# Scratch/one-off test files
+apps/api/scripts/scratch/
