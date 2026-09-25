@@ -1,5 +1,4 @@
 import { CvStructuredProfile, validateAndCleanCvProfile } from '../cv/schemaValidator';
-import { config } from '../../config/env';
 
 export interface LLMAttemptLog {
   provider: string;
@@ -14,17 +13,16 @@ export interface ILLMProvider {
   parseCv(rawText: string): Promise<CvStructuredProfile>;
 }
 
-// Circuit Breaker per provider
+// ---------------------------------------------------------------------------
+// Circuit Breaker
+// ---------------------------------------------------------------------------
 class CircuitBreaker {
   private failures: number = 0;
   private lastFailureTime: number = 0;
   private openUntil: number = 0;
 
   isOpen(): boolean {
-    if (Date.now() < this.openUntil) {
-      return true;
-    }
-    return false;
+    return Date.now() < this.openUntil;
   }
 
   recordSuccess() {
@@ -40,9 +38,8 @@ class CircuitBreaker {
       this.failures += 1;
     }
     this.lastFailureTime = now;
-
     if (this.failures >= 3) {
-      this.openUntil = now + 60000; // Open circuit for 60s
+      this.openUntil = now + 60000;
       console.warn(`[CIRCUIT BREAKER] Circuit OPENED for provider. Failures: ${this.failures}`);
     }
   }
@@ -59,7 +56,66 @@ function getCircuitBreaker(providerName: string): CircuitBreaker {
   return cb;
 }
 
-// Concrete Mock Provider for fallback testing
+// ---------------------------------------------------------------------------
+// Shared prompt
+// ---------------------------------------------------------------------------
+const CV_SYSTEM_PROMPT = `You are a CV parsing assistant. Extract structured information from the provided CV text and return ONLY a valid JSON object matching this exact schema. Do not include any markdown, explanation, or extra text — raw JSON only.
+
+Schema:
+{
+  "contact_info": {
+    "full_name": "string",
+    "email": "string",
+    "phone": "string",
+    "location": "string",
+    "linkedin_url": "string or null",
+    "website": "string or null"
+  },
+  "summary": "string or null",
+  "work_history": [
+    {
+      "title": "string",
+      "company": "string",
+      "location": "string or null",
+      "start_date": "YYYY-MM string",
+      "end_date": "YYYY-MM string or Present",
+      "is_current": boolean,
+      "bullet_points": ["string"]
+    }
+  ],
+  "education": [
+    {
+      "institution": "string",
+      "degree": "string",
+      "field_of_study": "string or null",
+      "start_date": "YYYY-MM string or null",
+      "end_date": "YYYY-MM string or null"
+    }
+  ],
+  "skills": [
+    { "skill_name": "string", "category": "string or null" }
+  ],
+  "certifications": [
+    {
+      "name": "string",
+      "issuing_organization": "string or null",
+      "issue_date": "YYYY-MM string or null",
+      "expiration_date": "YYYY-MM string or null",
+      "credential_id": "string or null"
+    }
+  ]
+}`;
+
+function extractJson(raw: string): unknown {
+  // Strip markdown code fences if the model wrapped the JSON
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const text = fenced ? fenced[1] : raw;
+  return JSON.parse(text.trim());
+}
+
+// ---------------------------------------------------------------------------
+// Mock Provider (used in tests / when no real keys are set)
+// ---------------------------------------------------------------------------
 export class MockLLMProvider implements ILLMProvider {
   public name: string;
   private failType?: '500' | '429' | 'timeout' | 'validation';
@@ -92,11 +148,10 @@ export class MockLLMProvider implements ILLMProvider {
       throw err;
     }
 
-    // Heuristic extraction for test mock
     const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
     const fullName = lines.find((l) => !l.includes('@') && !l.startsWith('http') && l.length < 50) || 'John Doe';
     const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    const phoneMatch = rawText.match(/(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+    const phoneMatch = rawText.match(/(\+?\d{1,3}[-.\\s]?)?\(?\d{3}\)?[-.\\s]?\d{3}[-.\\s]?\d{4}/);
 
     return {
       contact_info: {
@@ -146,15 +201,159 @@ export class MockLLMProvider implements ILLMProvider {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Grok (xAI) Provider
+// ---------------------------------------------------------------------------
+export class GrokLLMProvider implements ILLMProvider {
+  public name = 'grok';
+  private apiKey: string;
+  private model: string;
+
+  constructor() {
+    this.apiKey = process.env.GROK_API_KEY || '';
+    this.model = process.env.GROK_MODEL || 'grok-3-mini';
+    if (!this.apiKey) throw new Error('GROK_API_KEY is not set');
+  }
+
+  async parseCv(rawText: string): Promise<CvStructuredProfile> {
+    const res = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: [
+          { role: 'system', content: CV_SYSTEM_PROMPT },
+          { role: 'user', content: rawText },
+        ],
+        temperature: 0,
+      }),
+    });
+
+    if (!res.ok) {
+      const err: any = new Error(`Grok API error: ${res.status}`);
+      err.statusCode = res.status;
+      throw err;
+    }
+
+    const json: any = await res.json();
+    const content: string = json.choices?.[0]?.message?.content ?? '';
+    return extractJson(content) as CvStructuredProfile;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Google Gemini Provider
+// ---------------------------------------------------------------------------
+export class GeminiLLMProvider implements ILLMProvider {
+  public name = 'gemini';
+  private apiKey: string;
+  private model: string;
+
+  constructor() {
+    this.apiKey = process.env.GEMINI_API_KEY || '';
+    this.model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+    if (!this.apiKey) throw new Error('GEMINI_API_KEY is not set');
+  }
+
+  async parseCv(rawText: string): Promise<CvStructuredProfile> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: CV_SYSTEM_PROMPT }] },
+        contents: [{ role: 'user', parts: [{ text: rawText }] }],
+        generationConfig: { temperature: 0 },
+      }),
+    });
+
+    if (!res.ok) {
+      const err: any = new Error(`Gemini API error: ${res.status}`);
+      err.statusCode = res.status;
+      throw err;
+    }
+
+    const json: any = await res.json();
+    const content: string = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    return extractJson(content) as CvStructuredProfile;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// OpenRouter Provider
+// ---------------------------------------------------------------------------
+export class OpenRouterLLMProvider implements ILLMProvider {
+  public name = 'openrouter';
+  private apiKey: string;
+  private model: string;
+
+  constructor() {
+    this.apiKey = process.env.OPENROUTER_API_KEY || '';
+    this.model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct';
+    if (!this.apiKey) throw new Error('OPENROUTER_API_KEY is not set');
+  }
+
+  async parseCv(rawText: string): Promise<CvStructuredProfile> {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+        'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
+        'X-Title': 'Job Apply Agent',
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: [
+          { role: 'system', content: CV_SYSTEM_PROMPT },
+          { role: 'user', content: rawText },
+        ],
+        temperature: 0,
+      }),
+    });
+
+    if (!res.ok) {
+      const err: any = new Error(`OpenRouter API error: ${res.status}`);
+      err.statusCode = res.status;
+      throw err;
+    }
+
+    const json: any = await res.json();
+    const content: string = json.choices?.[0]?.message?.content ?? '';
+    return extractJson(content) as CvStructuredProfile;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// LLM Manager
+// ---------------------------------------------------------------------------
 export class LLMManager {
   private providers: Map<string, ILLMProvider> = new Map();
   public attemptLogs: LLMAttemptLog[] = [];
 
   constructor() {
-    // Default register fallback mock providers if no real keys set
+    // Always register mocks so tests can use them without real keys
     this.registerProvider(new MockLLMProvider('mock_primary'));
     this.registerProvider(new MockLLMProvider('mock_secondary'));
     this.registerProvider(new MockLLMProvider('mock_tertiary'));
+
+    // Register real providers when keys are available
+    if (process.env.GROK_API_KEY) {
+      try { this.registerProvider(new GrokLLMProvider()); }
+      catch (e: any) { console.warn('[LLM MANAGER] Grok registration failed:', e.message); }
+    }
+    if (process.env.GEMINI_API_KEY) {
+      try { this.registerProvider(new GeminiLLMProvider()); }
+      catch (e: any) { console.warn('[LLM MANAGER] Gemini registration failed:', e.message); }
+    }
+    if (process.env.OPENROUTER_API_KEY) {
+      try { this.registerProvider(new OpenRouterLLMProvider()); }
+      catch (e: any) { console.warn('[LLM MANAGER] OpenRouter registration failed:', e.message); }
+    }
   }
 
   registerProvider(provider: ILLMProvider) {
@@ -180,12 +379,7 @@ export class LLMManager {
       const cb = getCircuitBreaker(cleanName);
       if (cb.isOpen()) {
         console.warn(`[LLM MANAGER] Skipping provider '${cleanName}' because Circuit Breaker is OPEN.`);
-        currentLogs.push({
-          provider: cleanName,
-          success: false,
-          latencyMs: 0,
-          reason: 'Circuit Breaker OPEN',
-        });
+        currentLogs.push({ provider: cleanName, success: false, latencyMs: 0, reason: 'Circuit Breaker OPEN' });
         continue;
       }
 
@@ -195,12 +389,7 @@ export class LLMManager {
         const latencyMs = Date.now() - startTime;
         cb.recordSuccess();
 
-        const log: LLMAttemptLog = {
-          provider: cleanName,
-          success: true,
-          latencyMs,
-          statusCode: 200,
-        };
+        const log: LLMAttemptLog = { provider: cleanName, success: true, latencyMs, statusCode: 200 };
         currentLogs.push(log);
         this.attemptLogs.push(log);
         console.log(`[LLM SUCCESS] Provider '${cleanName}' parsed CV successfully in ${latencyMs}ms.`);
@@ -214,24 +403,16 @@ export class LLMManager {
 
         cb.recordFailure();
 
-        const log: LLMAttemptLog = {
-          provider: cleanName,
-          success: false,
-          latencyMs,
-          statusCode,
-          reason: err.message,
-        };
+        const log: LLMAttemptLog = { provider: cleanName, success: false, latencyMs, statusCode, reason: err.message };
         currentLogs.push(log);
         this.attemptLogs.push(log);
 
         console.error(`[LLM ERROR] Provider '${cleanName}' failed (${statusCode}): ${err.message}`);
 
         if (isValidationErr) {
-          // Never fallback on validation error!
           throw err;
         }
 
-        // Retry on 429, 5xx, timeout
         console.warn(`[LLM FALLBACK] Falling back from '${cleanName}' due to retryable error (${statusCode}).`);
       }
     }
@@ -239,5 +420,4 @@ export class LLMManager {
     throw new Error(`All configured LLM providers failed. Attempted: ${configuredList.join(', ')}`);
   }
 }
-
 export const llmManager = new LLMManager();
