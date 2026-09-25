@@ -17,6 +17,7 @@ const testScripts = [
   { name: 'Real SMTP Delivery & Outage Recovery', command: 'tsx scripts/test-email-delivery-mailpit.ts' },
   { name: 'Git History Secret Scanner', command: 'tsx scripts/scan-secrets.ts' },
   { name: 'System Acceptance & Multi-Tenant Isolation', command: 'tsx scripts/test-acceptance.ts' },
+  { name: 'Module 1: CV Upload, Parsing & Profile', command: 'tsx scripts/test-cv-module.ts' },
 ];
 
 async function runAllTests() {
