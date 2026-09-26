@@ -1,5 +1,6 @@
 export interface RedFlagRule {
   phrase: string;
+  pattern?: RegExp;
   reason: string;
 }
 
@@ -26,6 +27,11 @@ export const MATCHING_CONFIG: MatchingConfiguration = {
       reason: 'Precondition requires video introduction',
     },
     {
+      phrase: 'video introducing yourself',
+      pattern: /\bvideo\s+introducing\s+yourself\b/i,
+      reason: 'Precondition requires video introduction',
+    },
+    {
       phrase: 'video resume',
       reason: 'Precondition requires video resume',
     },
@@ -35,10 +41,16 @@ export const MATCHING_CONFIG: MatchingConfiguration = {
     },
     {
       phrase: 'record a video',
+      pattern: /\brecord\s+(?:a\s+)?(?:short\s+)?video\b/i,
       reason: 'Precondition requires video recording',
     },
     {
       phrase: 'selfie verification',
+      reason: 'Mandatory selfie verification required',
+    },
+    {
+      phrase: 'selfie',
+      pattern: /\bselfie\b/i,
       reason: 'Mandatory selfie verification required',
     },
     {
@@ -64,6 +76,11 @@ export const MATCHING_CONFIG: MatchingConfiguration = {
     {
       phrase: 'asynchronous video interview',
       reason: 'Mandatory asynchronous video interview',
+    },
+    {
+      phrase: 'hirevue',
+      pattern: /\b(?:hirevue|modern\s*hire|willotalent|myinterview)\b/i,
+      reason: 'Mandatory asynchronous one-way video platform screening',
     },
   ],
 };

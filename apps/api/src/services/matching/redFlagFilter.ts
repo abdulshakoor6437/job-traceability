@@ -10,7 +10,7 @@ export interface RedFlagCheckResult {
  * Screens a job description for mandatory face/facial recognition, selfie verification,
  * video introduction, video resume, or AI video screening preconditions.
  *
- * All phrase definitions are configured in matchingConfig.ts (never hardcoded in logic).
+ * All phrase definitions and patterns are configured in matchingConfig.ts (never hardcoded in logic).
  * Differentiates precondition hurdles from standard 2-way live interviews (e.g. 'video call interview').
  */
 export function screenJobDescription(
@@ -24,10 +24,19 @@ export function screenJobDescription(
   const text = description.toLowerCase();
 
   for (const rule of rules) {
+    // 1. Regex pattern check if defined in config rule
+    if (rule.pattern && rule.pattern.test(description)) {
+      return {
+        isExcluded: true,
+        excludedReason: rule.reason,
+        matchedPhrase: rule.phrase,
+      };
+    }
+
+    // 2. Substring match for multi-word phrase
     const phrase = rule.phrase.toLowerCase().trim();
     if (!phrase) continue;
 
-    // Substring match for multi-word phrase
     if (text.includes(phrase)) {
       return {
         isExcluded: true,

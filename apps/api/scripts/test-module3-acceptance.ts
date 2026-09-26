@@ -153,10 +153,11 @@ async function runAcceptanceTests() {
   console.log(`Backend CV vs Marketing Job ("${marketingMatch.title}"): Score = ${marketingMatch.score} (${marketingMatch.label})`);
   console.log(`Score Difference: ${backendMatch.score - marketingMatch.score} points`);
 
-  if (backendMatch.score <= marketingMatch.score || (backendMatch.score - marketingMatch.score) < 40) {
+  const scoreDelta = backendMatch.score - marketingMatch.score;
+  if (backendMatch.score <= marketingMatch.score || scoreDelta < 40) {
     throw new Error(`❌ TEST (a) FAILED: Expected backend match score (${backendMatch.score}) to be significantly higher than marketing match score (${marketingMatch.score})!`);
   }
-  console.log('✅ TEST (a) PASSED: Backend CV scored significantly higher on backend role (+40 points delta).\n');
+  console.log(`✅ TEST (a) PASSED: Backend CV scored significantly higher on backend role (+${scoreDelta} points delta, exceeding required >= 40 threshold).\n`);
 
   // -------------------------------------------------------------------------
   // TEST b: "submit a video introduction to be considered" is Excluded
