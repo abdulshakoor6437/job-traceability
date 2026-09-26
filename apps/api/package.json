@@ -18,7 +18,8 @@
     "test:outbox": "tsx scripts/test-outbox.ts",
     "test:all": "tsx scripts/test-all.ts",
     "test:cv-e2e": "tsx scripts/test-cv-e2e.ts && tsx scripts/verify-real-fixtures.ts",
-    "test:module2": "tsx scripts/test-real-acceptance.ts"
+    "test:module2": "tsx scripts/test-real-acceptance.ts",
+    "test:module3": "tsx scripts/test-module3-acceptance.ts"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",
