@@ -79,3 +79,17 @@ For production email deliverability and domain reputation protection:
   - `Secure`: Enforced automatically when `NODE_ENV !== 'development'`.
   - `SameSite=Lax`: Prevents CSRF attacks while allowing top-level navigation logins.
   - `Path=/`: Restricts scope to root path.
+
+---
+
+## KNOWN SYSTEM LIMITATIONS & CAPACITY CONSTRAINTS
+
+### Job Sourcing Provider Quotas (Module 2)
+- **JSearch Monthly Cap**: With JSearch hard-capped at 100 requests/month and shared database caching configured with an 8-hour TTL, the system supports approximately **3 distinct new searches per day system-wide** before JSearch monthly quota is exhausted.
+- **SerpApi Monthly Cap**: SerpApi is capped at 250 searches/month (~8 distinct new searches per day system-wide).
+- **Remotive**: Public open-access API with no monthly request limit.
+- **Action Required Before User Onboarding**:
+  This throughput constraint is a known limitation that must be revisited prior to onboarding real users. Recommended mitigations include:
+  1. Upgrading JSearch and SerpApi subscription tiers.
+  2. Extending shared cache TTL (e.g. from 8 hours to 24–48 hours).
+  3. Rebalancing provider fallback strategy to rely more heavily on Remotive or SerpApi when JSearch nears its quota limit.

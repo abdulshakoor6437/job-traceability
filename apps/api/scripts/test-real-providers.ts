@@ -62,7 +62,7 @@ async function main() {
     console.log('   Please add JSEARCH_API_KEY=<your_rapidapi_key> to .env.');
   } else {
     try {
-      const url = 'https://jsearch.p.rapidapi.com/search?query=software%20engineer%20in%20New%20York&page=1&num_pages=1';
+      const url = 'https://jsearch.p.rapidapi.com/search-v2?query=software%20engineer%20in%20New%20York&page=1&num_pages=1';
       const jsearchStart = Date.now();
       const res = await fetch(url, {
         headers: {

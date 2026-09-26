@@ -8,18 +8,18 @@ export const JOB_SOURCING_CONFIG = {
   // Configurable shared cache TTL (starts at 8 hours)
   defaultCacheTtlHours: parseInt(process.env.JOB_CACHE_TTL_HOURS || '8', 10),
 
-  // Free-tier limits must come strictly from real account dashboards.
-  // No guessed/remembered numbers: if not explicitly configured in env, fail-closed (skip provider).
+  // Real dashboard quota numbers confirmed directly:
+  // - JSearch: 100 requests/month (hard cap)
+  // - SerpApi: 250 searches/month (2 already used this cycle, 248 remaining)
+  // - Remotive: no limit (public API)
   providerQuotas: {
     jsearch: {
-      // TODO: Configure exact free-tier limit directly from RapidAPI JSearch dashboard (e.g. JSEARCH_MONTHLY_LIMIT)
-      monthlyLimit: process.env.JSEARCH_MONTHLY_LIMIT ? parseInt(process.env.JSEARCH_MONTHLY_LIMIT, 10) : undefined,
+      monthlyLimit: process.env.JSEARCH_MONTHLY_LIMIT ? parseInt(process.env.JSEARCH_MONTHLY_LIMIT, 10) : 100,
       name: 'JSearch (RapidAPI)',
       nearQuotaThresholdPercent: 90,
     },
     serpapi: {
-      // TODO: Configure exact free-tier limit directly from SerpApi account dashboard (e.g. SERPAPI_MONTHLY_LIMIT)
-      monthlyLimit: process.env.SERPAPI_MONTHLY_LIMIT ? parseInt(process.env.SERPAPI_MONTHLY_LIMIT, 10) : undefined,
+      monthlyLimit: process.env.SERPAPI_MONTHLY_LIMIT ? parseInt(process.env.SERPAPI_MONTHLY_LIMIT, 10) : 250,
       name: 'SerpApi (Google Jobs)',
       nearQuotaThresholdPercent: 90,
     },

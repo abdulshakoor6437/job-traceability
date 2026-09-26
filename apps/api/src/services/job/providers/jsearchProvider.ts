@@ -35,7 +35,7 @@ export class JSearchProvider implements IJobSource {
     }
 
     const searchQuery = location && location.trim() ? `${query} in ${location}` : query;
-    const url = new URL('https://jsearch.p.rapidapi.com/search');
+    const url = new URL('https://jsearch.p.rapidapi.com/search-v2');
     url.searchParams.set('query', searchQuery);
     url.searchParams.set('page', String(page || 1));
     url.searchParams.set('num_pages', '1');
@@ -56,7 +56,11 @@ export class JSearchProvider implements IJobSource {
     }
 
     const data: any = await res.json();
-    const rawJobs: JSearchRawJob[] = Array.isArray(data?.data) ? data.data : [];
+    const rawJobs: JSearchRawJob[] = Array.isArray(data?.data?.jobs)
+      ? data.data.jobs
+      : Array.isArray(data?.data)
+      ? data.data
+      : [];
 
     return rawJobs.map((item) => {
       const locationParts = [item.job_city, item.job_state, item.job_country].filter(Boolean);

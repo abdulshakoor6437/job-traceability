@@ -23,7 +23,9 @@ export class ApiRunnerHelper {
     };
 
     const entryScript = path.resolve(__dirname, '../../src/index.ts');
-    const tsxCli = path.resolve(__dirname, '../../../../node_modules/tsx/dist/cli.mjs');
+    const localTsx = path.resolve(__dirname, '../../node_modules/tsx/dist/cli.mjs');
+    const rootTsx = path.resolve(__dirname, '../../../../node_modules/tsx/dist/cli.mjs');
+    const tsxCli = require('fs').existsSync(localTsx) ? localTsx : rootTsx;
 
     this.child = spawn(process.execPath, [tsxCli, entryScript], {
       cwd: path.resolve(__dirname, '../..'),

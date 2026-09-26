@@ -53,7 +53,7 @@ async function runAllTests() {
   }
 
   console.log('================================================================');
-  console.log(`🎉 ALL ${passedCount} MODULE 0 & MODULE 1 TEST SUITES PASSED PERFECTLY!`);
+  console.log(`🎉 ALL ${passedCount} MODULE 0, MODULE 1 & MODULE 2 TEST SUITES PASSED PERFECTLY!`);
   console.log('================================================================\n');
 
   process.exit(0);
