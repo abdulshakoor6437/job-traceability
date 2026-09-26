@@ -231,6 +231,7 @@ export class CvDal {
         );
       }
 
+      await conn.execute(`DELETE FROM user_match_cache WHERE user_id = ?`, [userId]);
       await conn.commit();
 
       return this.getProfileById(userId, profileId) as Promise<FullCvProfile>;
@@ -327,6 +328,7 @@ export class CvDal {
 
       await conn.execute(`UPDATE cv_profiles SET is_active = 0 WHERE user_id = ?`, [userId]);
       await conn.execute(`UPDATE cv_profiles SET is_active = 1 WHERE id = ? AND user_id = ?`, [profileId, userId]);
+      await conn.execute(`DELETE FROM user_match_cache WHERE user_id = ?`, [userId]);
 
       await conn.commit();
       return true;
@@ -457,6 +459,7 @@ export class CvDal {
         );
       }
 
+      await conn.execute(`DELETE FROM user_match_cache WHERE user_id = ?`, [userId]);
       await conn.commit();
       return this.getProfileById(userId, profileId);
     } catch (err) {
@@ -512,6 +515,7 @@ export class CvDal {
         }
       }
 
+      await conn.execute(`DELETE FROM user_match_cache WHERE user_id = ?`, [userId]);
       await conn.commit();
       return { success: true, storageKey };
     } catch (err) {
