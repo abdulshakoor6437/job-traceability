@@ -5,7 +5,7 @@ import path from 'path';
 export class ApiRunnerHelper {
   private child: ChildProcess | null = null;
 
-  async startServer(port: number, envVars: Record<string, string>): Promise<void> {
+  async startServer(port: number, envVars: Record<string, string | undefined> = {}): Promise<void> {
     await this.stopServer();
 
     try {

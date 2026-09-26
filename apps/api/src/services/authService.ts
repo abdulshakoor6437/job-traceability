@@ -22,6 +22,11 @@ export function generateOpaqueToken(): string {
 
 export class AuthService {
   async signup(email: string, password: string): Promise<{ message: string }> {
+    const trimmedEmail = email.toLowerCase().trim();
+    const genericResponse = {
+      message: 'If your email is valid, a verification link has been sent.',
+    };
+
     try {
       if (!isValidEmailFormat(email)) {
         throw new Error('Invalid email address format.');
@@ -35,12 +40,7 @@ export class AuthService {
         throw new Error('Password exceeds maximum length of 72 bytes.');
       }
 
-      const trimmedEmail = email.toLowerCase().trim();
       const existing = await authDal.findUserByEmail(trimmedEmail);
-
-      const genericResponse = {
-        message: 'If your email is valid, a verification link has been sent.',
-      };
 
       if (existing) {
         // Item 5 & 6: Run dummy bcrypt hash for timing parity with new signup (~100ms)

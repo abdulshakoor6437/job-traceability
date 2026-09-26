@@ -174,7 +174,7 @@ async function generateDocx() {
             new Paragraph({
               children: [
                 new TextRun({ text: `${job.title} — ${job.company} (${job.location})`, bold: true }),
-                new TextRun({ text: `   [${job.startDate} to ${job.endDate}]`, italic: true }),
+                new TextRun({ text: `   [${job.startDate} to ${job.endDate}]`, italics: true }),
               ],
             }),
             ...job.bulletPoints.map(
@@ -194,7 +194,7 @@ async function generateDocx() {
               new Paragraph({
                 children: [
                   new TextRun({ text: `${edu.degree} in ${edu.fieldOfStudy} — ${edu.institution}`, bold: true }),
-                  new TextRun({ text: ` (${edu.startDate} to ${edu.endDate})`, italic: true }),
+                  new TextRun({ text: ` (${edu.startDate} to ${edu.endDate})`, italics: true }),
                 ],
               })
           ),
