@@ -33,3 +33,28 @@ export interface UpdateSettingsRequest {
 export interface GenericMessageResponse {
   message: string;
 }
+
+export interface NormalizedJob {
+  externalId: string;
+  sourceProvider: string;
+  title: string;
+  company: string;
+  location: string | null;
+  remote: boolean;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  salaryCurrency: string | null;
+  description: string | null;
+  applyUrl: string | null;
+  postedDate: string | null;
+  fetchedAt: string;
+  sourceProviders?: string[];
+  externalIds?: Record<string, string>;
+}
+
+export interface JobSearchFilters {
+  remoteOnly?: boolean;
+  minSalary?: number;
+  salaryCurrency?: string;
+  limit?: number;
+}
