@@ -1,46 +1,56 @@
 import { z } from 'zod';
 
+const str = z.unknown().transform((v) => {
+  if (v === null || v === undefined) return '';
+  return String(v);
+});
+
+const bool = z.unknown().transform((v) => {
+  if (v === true || v === 'true' || v === 1 || v === '1') return true;
+  return false;
+});
+
 export const WorkHistorySchema = z.object({
-  title: z.string().default(''),
-  company: z.string().default(''),
-  location: z.string().default(''),
-  start_date: z.string().default(''),
-  end_date: z.string().default(''),
-  is_current: z.boolean().default(false),
-  bullet_points: z.array(z.string()).default([]),
+  title: str,
+  company: str,
+  location: str,
+  start_date: str,
+  end_date: str,
+  is_current: bool,
+  bullet_points: z.array(str).default([]),
 });
 
 export const EducationSchema = z.object({
-  institution: z.string().default(''),
-  degree: z.string().default(''),
-  field_of_study: z.string().default(''),
-  start_date: z.string().default(''),
-  end_date: z.string().default(''),
+  institution: str,
+  degree: str,
+  field_of_study: str,
+  start_date: str,
+  end_date: str,
 });
 
 export const SkillSchema = z.object({
-  skill_name: z.string().default(''),
-  category: z.string().default(''),
+  skill_name: str,
+  category: str,
 });
 
 export const CertificationSchema = z.object({
-  name: z.string().default(''),
-  issuing_organization: z.string().default(''),
-  issue_date: z.string().default(''),
-  expiration_date: z.string().default(''),
-  credential_id: z.string().default(''),
+  name: str,
+  issuing_organization: str,
+  issue_date: str,
+  expiration_date: str,
+  credential_id: str,
 });
 
 export const CvStructuredProfileSchema = z.object({
   contact_info: z.object({
-    full_name: z.string().default(''),
-    email: z.string().default(''),
-    phone: z.string().default(''),
-    location: z.string().default(''),
-    linkedin_url: z.string().default(''),
-    website: z.string().default(''),
+    full_name: str,
+    email: str,
+    phone: str,
+    location: str,
+    linkedin_url: str,
+    website: str,
   }).default({}),
-  summary: z.string().default(''),
+  summary: str,
   work_history: z.array(WorkHistorySchema).default([]),
   education: z.array(EducationSchema).default([]),
   skills: z.array(SkillSchema).default([]),

@@ -1,5 +1,6 @@
 import http from 'http';
 import { config } from '../src/config/env';
+import { apiRunner } from './test-helpers/apiRunner';
 
 const API_HOST = '127.0.0.1';
 const API_PORT = config.port;
@@ -62,6 +63,8 @@ async function runOfflineAuthTest() {
   console.log('🧪 RUNNING AUTOMATED AUTH TEST WITH REDIS COMPLETELY STOPPED');
   console.log('================================================================\n');
 
+  await apiRunner.startServer(API_PORT);
+
   try {
     const pool = require('../src/dal/db').getDbPool();
     await pool.execute('DELETE FROM rate_limits');
@@ -116,6 +119,7 @@ async function runOfflineAuthTest() {
   console.log('🎉 FULL AUTOMATED AUTH SUITE PASSED WITH REDIS STOPPED!');
   console.log('================================================================\n');
 
+  await apiRunner.stopServer();
   process.exit(0);
 }
 

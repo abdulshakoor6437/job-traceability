@@ -16,7 +16,31 @@ const upload = multer({
 });
 
 // POST /api/cv/upload
-router.post('/upload', upload.single('file'), async (req: AuthenticatedRequest, res: Response) => {
+router.post('/upload', (req: AuthenticatedRequest, res: Response, next) => {
+  upload.single('file')(req, res, (err: any) => {
+    if (err) {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        res.status(413).json({
+          error: 'Payload Too Large',
+          code: 'LIMIT_FILE_SIZE',
+          message: 'File size exceeds maximum allowed limit of 10 MB.',
+        });
+        return;
+      }
+      if (err instanceof multer.MulterError) {
+        res.status(400).json({
+          error: 'Bad Request',
+          code: err.code,
+          message: err.message,
+        });
+        return;
+      }
+      res.status(500).json({ error: 'Internal Server Error', message: err.message || 'File upload failed.' });
+      return;
+    }
+    next();
+  });
+}, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const file = req.file;
     if (!file || !file.buffer) {

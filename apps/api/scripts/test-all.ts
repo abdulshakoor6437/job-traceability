@@ -3,6 +3,7 @@ import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 import { execSync } from 'child_process';
+import { apiRunner } from './test-helpers/apiRunner';
 
 const testScripts = [
   { name: 'DAL Scope Check (check:dal)', command: 'tsx scripts/check-dal-imports.ts' },
@@ -18,31 +19,40 @@ const testScripts = [
   { name: 'Git History Secret Scanner', command: 'tsx scripts/scan-secrets.ts' },
   { name: 'System Acceptance & Multi-Tenant Isolation', command: 'tsx scripts/test-acceptance.ts' },
   { name: 'Module 1: CV Upload, Parsing & Profile', command: 'tsx scripts/test-cv-module.ts' },
+  { name: 'Module 1: Comprehensive E2E CV Suite', command: 'tsx scripts/test-cv-e2e.ts' },
+  { name: 'Module 1: Real Fixtures Field-by-Field Verification', command: 'tsx scripts/verify-real-fixtures.ts' },
 ];
 
 async function runAllTests() {
   console.log('\n================================================================');
-  console.log('🚀 RUNNING ALL MODULE 0 TEST SUITES (npm run test:all)');
+  console.log('🚀 RUNNING ALL MODULE 0 & MODULE 1 TEST SUITES (npm run test:all)');
   console.log('================================================================\n');
+
+  console.log('🔧 Starting background API server for test suite...');
+  await apiRunner.startServer(4000, { EMAIL_MODE: 'console' });
 
   let passedCount = 0;
   let failedCount = 0;
 
-  for (const { name, command } of testScripts) {
-    console.log(`▶ Executing Module: ${name} (${command})...`);
-    try {
-      execSync(`npx ${command}`, { stdio: 'inherit', cwd: __dirname + '/..' });
-      console.log(`✅ MODULE PASSED: ${name}\n`);
-      passedCount++;
-    } catch (error) {
-      console.error(`❌ MODULE FAILED: ${name}\n`);
-      failedCount++;
-      process.exit(1);
+  try {
+    for (const { name, command } of testScripts) {
+      console.log(`▶ Executing Module: ${name} (${command})...`);
+      try {
+        execSync(`npx ${command}`, { stdio: 'inherit', cwd: __dirname + '/..' });
+        console.log(`✅ MODULE PASSED: ${name}\n`);
+        passedCount++;
+      } catch (error) {
+        console.error(`❌ MODULE FAILED: ${name}\n`);
+        failedCount++;
+        process.exit(1);
+      }
     }
+  } finally {
+    await apiRunner.stopServer();
   }
 
   console.log('================================================================');
-  console.log(`🎉 ALL ${passedCount} MODULE 0 TEST SUITES PASSED PERFECTLY!`);
+  console.log(`🎉 ALL ${passedCount} MODULE 0 & MODULE 1 TEST SUITES PASSED PERFECTLY!`);
   console.log('================================================================\n');
 
   process.exit(0);

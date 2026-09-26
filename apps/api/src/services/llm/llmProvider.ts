@@ -1,3 +1,4 @@
+import { GoogleGenAI } from '@google/genai';
 import { CvStructuredProfile, validateAndCleanCvProfile } from '../cv/schemaValidator';
 
 export interface LLMAttemptLog {
@@ -56,6 +57,23 @@ function getCircuitBreaker(providerName: string): CircuitBreaker {
   return cb;
 }
 
+/** Reset all global circuit breakers — use ONLY in tests. */
+export function resetAllCircuitBreakers() {
+  providerCircuitBreakers.clear();
+}
+
+// Real LLM API Call Counter (incremented in code on each actual API call)
+let realLLMApiCallCount = 0;
+export function incrementRealLLMApiCallCount(): void {
+  realLLMApiCallCount++;
+}
+export function getRealLLMApiCallCount(): number {
+  return realLLMApiCallCount;
+}
+export function resetRealLLMApiCallCount(): void {
+  realLLMApiCallCount = 0;
+}
+
 // ---------------------------------------------------------------------------
 // Shared prompt
 // ---------------------------------------------------------------------------
@@ -107,10 +125,24 @@ Schema:
 }`;
 
 function extractJson(raw: string): unknown {
-  // Strip markdown code fences if the model wrapped the JSON
+  // 1. Try markdown fenced code block
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const text = fenced ? fenced[1] : raw;
-  return JSON.parse(text.trim());
+  if (fenced && fenced[1]) {
+    try { return JSON.parse(fenced[1].trim()); } catch {}
+  }
+
+  // 2. Try direct raw text parse
+  try { return JSON.parse(raw.trim()); } catch {}
+
+  // 3. Fallback: Extract substring between first '{' and last '}'
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  if (start !== -1 && end > start) {
+    const jsonSub = raw.substring(start, end + 1);
+    try { return JSON.parse(jsonSub); } catch {}
+  }
+
+  throw new Error(`Failed to parse JSON from LLM response: ${raw.substring(0, 100)}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -216,6 +248,7 @@ export class GrokLLMProvider implements ILLMProvider {
   }
 
   async parseCv(rawText: string): Promise<CvStructuredProfile> {
+    incrementRealLLMApiCallCount();
     const res = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -245,41 +278,34 @@ export class GrokLLMProvider implements ILLMProvider {
 }
 
 // ---------------------------------------------------------------------------
-// Google Gemini Provider
+// Google Gemini Provider (using @google/genai SDK)
 // ---------------------------------------------------------------------------
 export class GeminiLLMProvider implements ILLMProvider {
   public name = 'gemini';
-  private apiKey: string;
+  private ai: GoogleGenAI;
   private model: string;
 
   constructor() {
-    this.apiKey = process.env.GEMINI_API_KEY || '';
-    this.model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-    if (!this.apiKey) throw new Error('GEMINI_API_KEY is not set');
+    const apiKey = process.env.GEMINI_API_KEY || '';
+    if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
+    this.ai = new GoogleGenAI({ apiKey });
+    this.model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
   }
 
   async parseCv(rawText: string): Promise<CvStructuredProfile> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: CV_SYSTEM_PROMPT }] },
-        contents: [{ role: 'user', parts: [{ text: rawText }] }],
-        generationConfig: { temperature: 0 },
-      }),
-    });
-
-    if (!res.ok) {
-      const err: any = new Error(`Gemini API error: ${res.status}`);
-      err.statusCode = res.status;
-      throw err;
+    incrementRealLLMApiCallCount();
+    try {
+      const response = await this.ai.models.generateContent({
+        model: this.model,
+        contents: `${CV_SYSTEM_PROMPT}\n\n${rawText}`,
+      });
+      const content = response.text || '';
+      return extractJson(content) as CvStructuredProfile;
+    } catch (err: any) {
+      const error: any = new Error(`Gemini API error: ${err.message || err}`);
+      error.statusCode = err.status || 500;
+      throw error;
     }
-
-    const json: any = await res.json();
-    const content: string = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    return extractJson(content) as CvStructuredProfile;
   }
 }
 
@@ -298,6 +324,7 @@ export class OpenRouterLLMProvider implements ILLMProvider {
   }
 
   async parseCv(rawText: string): Promise<CvStructuredProfile> {
+    incrementRealLLMApiCallCount();
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -329,6 +356,50 @@ export class OpenRouterLLMProvider implements ILLMProvider {
 }
 
 // ---------------------------------------------------------------------------
+// Groq (groq.com) Provider
+// ---------------------------------------------------------------------------
+export class GroqLLMProvider implements ILLMProvider {
+  public name = 'groq';
+  private apiKey: string;
+  private model: string;
+
+  constructor() {
+    this.apiKey = process.env.GROQ_API_KEY || '';
+    this.model = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+    if (!this.apiKey) throw new Error('GROQ_API_KEY is not set');
+  }
+
+  async parseCv(rawText: string): Promise<CvStructuredProfile> {
+    incrementRealLLMApiCallCount();
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: [
+          { role: 'system', content: CV_SYSTEM_PROMPT },
+          { role: 'user', content: rawText },
+        ],
+        temperature: 0,
+      }),
+    });
+
+    if (!res.ok) {
+      const err: any = new Error(`Groq API error: ${res.status}`);
+      err.statusCode = res.status;
+      throw err;
+    }
+
+    const json: any = await res.json();
+    const content: string = json.choices?.[0]?.message?.content ?? '';
+    return extractJson(content) as CvStructuredProfile;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // LLM Manager
 // ---------------------------------------------------------------------------
 export class LLMManager {
@@ -342,6 +413,10 @@ export class LLMManager {
     this.registerProvider(new MockLLMProvider('mock_tertiary'));
 
     // Register real providers when keys are available
+    if (process.env.GROQ_API_KEY) {
+      try { this.registerProvider(new GroqLLMProvider()); }
+      catch (e: any) { console.warn('[LLM MANAGER] Groq registration failed:', e.message); }
+    }
     if (process.env.GROK_API_KEY) {
       try { this.registerProvider(new GrokLLMProvider()); }
       catch (e: any) { console.warn('[LLM MANAGER] Grok registration failed:', e.message); }
@@ -360,10 +435,26 @@ export class LLMManager {
     this.providers.set(provider.name, provider);
   }
 
+  public ensureProvidersRegistered() {
+    if (process.env.GROQ_API_KEY && !this.providers.has('groq')) {
+      try { this.registerProvider(new GroqLLMProvider()); } catch (e: any) {}
+    }
+    if (process.env.GROK_API_KEY && !this.providers.has('grok')) {
+      try { this.registerProvider(new GrokLLMProvider()); } catch (e: any) {}
+    }
+    if (process.env.GEMINI_API_KEY && !this.providers.has('gemini')) {
+      try { this.registerProvider(new GeminiLLMProvider()); } catch (e: any) {}
+    }
+    if (process.env.OPENROUTER_API_KEY && !this.providers.has('openrouter')) {
+      try { this.registerProvider(new OpenRouterLLMProvider()); } catch (e: any) {}
+    }
+  }
+
   async parseCvWithFallback(
     rawText: string,
     overrideProviderList?: string[]
   ): Promise<{ profile: CvStructuredProfile; needsReview: boolean; usedProvider: string; logs: LLMAttemptLog[] }> {
+    this.ensureProvidersRegistered();
     const configuredList = overrideProviderList || (process.env.LLM_PROVIDERS ? process.env.LLM_PROVIDERS.split(',') : ['mock_primary', 'mock_secondary', 'mock_tertiary']);
     const currentLogs: LLMAttemptLog[] = [];
 
@@ -399,7 +490,9 @@ export class LLMManager {
       } catch (err: any) {
         const latencyMs = Date.now() - startTime;
         const statusCode = err.statusCode || 500;
-        const isValidationErr = err.isValidationError || statusCode === 400;
+        // Only stop fallback for explicit schema-validation errors (isValidationError flag).
+        // HTTP 400 from an LLM API (bad key, bad request) is retryable — fall through.
+        const isValidationErr = err.isValidationError === true;
 
         cb.recordFailure();
 
@@ -421,3 +514,84 @@ export class LLMManager {
   }
 }
 export const llmManager = new LLMManager();
+
+/**
+ * Create a fully isolated LLMManager backed by its own private circuit-breaker
+ * map. Use this in tests so each scenario starts with a clean slate and does
+ * not interfere with the global singleton or other test scenarios.
+ *
+ * @param providers  Pre-registered ILLMProvider instances to populate the manager.
+ * @param providerList  The ordered list of provider names to attempt (maps to LLM_PROVIDERS).
+ */
+export function createIsolatedLLMManager(
+  providers: ILLMProvider[],
+  providerList: string[]
+): { manager: LLMManager; providerList: string[] } {
+  // Fresh circuit-breaker map scoped to this isolated manager
+  const localBreakers = new Map<string, CircuitBreaker>();
+
+  const manager = new LLMManager();
+  // Clear any auto-registered providers from the constructor
+  (manager as any).providers = new Map<string, ILLMProvider>();
+  for (const p of providers) {
+    manager.registerProvider(p);
+  }
+
+  // Monkey-patch parseCvWithFallback to use localBreakers instead of the global map
+  const origParse = manager.parseCvWithFallback.bind(manager);
+  manager.parseCvWithFallback = async function (
+    rawText: string,
+    overrideList?: string[]
+  ) {
+    const list = overrideList || providerList;
+    const currentLogs: LLMAttemptLog[] = [];
+
+    for (const providerName of list) {
+      const cleanName = providerName.trim();
+      const provider = (manager as any).providers.get(cleanName);
+
+      if (!provider) {
+        console.warn(`[ISOLATED LLM] Provider '${cleanName}' is not registered.`);
+        continue;
+      }
+
+      // Use local breaker map
+      if (!localBreakers.has(cleanName)) localBreakers.set(cleanName, new CircuitBreaker());
+      const cb = localBreakers.get(cleanName)!;
+
+      if (cb.isOpen()) {
+        console.warn(`[ISOLATED LLM] Skipping '${cleanName}' — Circuit Breaker OPEN.`);
+        currentLogs.push({ provider: cleanName, success: false, latencyMs: 0, reason: 'Circuit Breaker OPEN' });
+        continue;
+      }
+
+      const startTime = Date.now();
+      try {
+        const rawProfile = await provider.parseCv(rawText);
+        const latencyMs = Date.now() - startTime;
+        cb.recordSuccess();
+        const log: LLMAttemptLog = { provider: cleanName, success: true, latencyMs, statusCode: 200 };
+        currentLogs.push(log);
+        console.log(`[ISOLATED LLM SUCCESS] Provider '${cleanName}' in ${latencyMs}ms.`);
+        const { profile, needsReview } = validateAndCleanCvProfile(rawProfile);
+        return { profile, needsReview, usedProvider: cleanName, logs: currentLogs };
+      } catch (err: any) {
+        const latencyMs = Date.now() - startTime;
+        const statusCode = err.statusCode || 500;
+        // Only stop fallback for explicit schema-validation errors (isValidationError flag).
+        // HTTP 400 from an LLM API (bad key, bad request) is retryable — fall through.
+        const isValidationErr = err.isValidationError === true;
+        cb.recordFailure();
+        const log: LLMAttemptLog = { provider: cleanName, success: false, latencyMs, statusCode, reason: err.message };
+        currentLogs.push(log);
+        console.error(`[ISOLATED LLM ERROR] Provider '${cleanName}' failed (${statusCode}): ${err.message}`);
+        if (isValidationErr) throw err;
+        console.warn(`[ISOLATED LLM FALLBACK] Falling back from '${cleanName}'.`);
+      }
+    }
+
+    throw new Error(`All configured LLM providers failed. Attempted: ${list.join(', ')}`);
+  };
+
+  return { manager, providerList };
+}

@@ -2,6 +2,10 @@ import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import { sniffFileType } from '../storage/fileSniffer';
 
+// Security: maximum uncompressed text size accepted from a DOCX/ZIP entry (50 MB).
+// This guards against decompression bombs where a tiny .docx expands to gigabytes.
+const DOCX_MAX_EXTRACTED_BYTES = 50 * 1024 * 1024;
+
 export interface ExtractionResult {
   text: string;
   isScanned: boolean;
@@ -19,12 +23,23 @@ export async function extractCvText(buffer: Buffer): Promise<ExtractionResult> {
     try {
       const result = await mammoth.extractRawText({ buffer });
       const text = (result.value || '').trim();
+
+      // Decompression size cap: reject if extracted text is unreasonably large
+      if (Buffer.byteLength(text, 'utf8') > DOCX_MAX_EXTRACTED_BYTES) {
+        throw new Error(
+          `DOCX extracted text exceeds the 50 MB decompression cap (possible zip-bomb). File rejected.`
+        );
+      }
+
       return {
         text: text || '[EMPTY_DOCX_FILE]',
         isScanned: false,
         fileType: 'docx',
       };
     } catch (err: any) {
+      // Re-throw our own security errors immediately
+      if (err.message?.includes('decompression cap')) throw err;
+
       // Fallback: extract <w:t> XML tags from buffer
       const str = buffer.toString('utf-8');
       const wtRegex = /<w:t[^>]*>([^<]+)<\/w:t>/g;
@@ -34,8 +49,15 @@ export async function extractCvText(buffer: Buffer): Promise<ExtractionResult> {
         textMatches.push(match[1]);
       }
       if (textMatches.length > 0) {
+        const joined = textMatches.join(' ').trim();
+        // Decompression size cap applies to the fallback path too
+        if (Buffer.byteLength(joined, 'utf8') > DOCX_MAX_EXTRACTED_BYTES) {
+          throw new Error(
+            `DOCX extracted text exceeds the 50 MB decompression cap (possible zip-bomb). File rejected.`
+          );
+        }
         return {
-          text: textMatches.join(' ').trim(),
+          text: joined,
           isScanned: false,
           fileType: 'docx',
         };

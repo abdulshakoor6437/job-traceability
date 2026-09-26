@@ -32,7 +32,7 @@ export class ApiRunnerHelper {
     });
 
     this.child.stdout?.on('data', (d) => {
-      // console.log('[API RUNNER OUTPUT]', d.toString());
+      console.log('[API RUNNER OUTPUT]', d.toString());
     });
     this.child.stderr?.on('data', (d) => {
       console.error('[API RUNNER STDERR]', d.toString());
