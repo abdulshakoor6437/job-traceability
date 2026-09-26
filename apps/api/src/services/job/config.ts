@@ -1,27 +1,31 @@
 export interface ProviderQuotaConfig {
-  monthlyLimit: number;
+  monthlyLimit?: number;
   name: string;
-  nearQuotaThresholdPercent: number; // e.g. 90%
+  nearQuotaThresholdPercent: number;
 }
 
 export const JOB_SOURCING_CONFIG = {
   // Configurable shared cache TTL (starts at 8 hours)
   defaultCacheTtlHours: parseInt(process.env.JOB_CACHE_TTL_HOURS || '8', 10),
 
-  // Real free-tier limits documented from provider dashboards
+  // Free-tier limits must come strictly from real account dashboards.
+  // No guessed/remembered numbers: if not explicitly configured in env, fail-closed (skip provider).
   providerQuotas: {
     jsearch: {
-      monthlyLimit: parseInt(process.env.JSEARCH_MONTHLY_LIMIT || '200', 10), // RapidAPI JSearch Basic Plan: 200 requests/mo
-      name: 'JSearch (RapidAPI Basic)',
+      // TODO: Configure exact free-tier limit directly from RapidAPI JSearch dashboard (e.g. JSEARCH_MONTHLY_LIMIT)
+      monthlyLimit: process.env.JSEARCH_MONTHLY_LIMIT ? parseInt(process.env.JSEARCH_MONTHLY_LIMIT, 10) : undefined,
+      name: 'JSearch (RapidAPI)',
       nearQuotaThresholdPercent: 90,
     },
     serpapi: {
-      monthlyLimit: parseInt(process.env.SERPAPI_MONTHLY_LIMIT || '250', 10), // SerpApi Free Plan: 250 searches/mo
-      name: 'SerpApi (Google Jobs Free)',
+      // TODO: Configure exact free-tier limit directly from SerpApi account dashboard (e.g. SERPAPI_MONTHLY_LIMIT)
+      monthlyLimit: process.env.SERPAPI_MONTHLY_LIMIT ? parseInt(process.env.SERPAPI_MONTHLY_LIMIT, 10) : undefined,
+      name: 'SerpApi (Google Jobs)',
       nearQuotaThresholdPercent: 90,
     },
     remotive: {
-      monthlyLimit: Infinity, // Remotive is a free public API with no monthly account quota
+      // Remotive is a public open-access API with no account registration or monthly limit
+      monthlyLimit: Infinity,
       name: 'Remotive (Public API)',
       nearQuotaThresholdPercent: 100,
     },

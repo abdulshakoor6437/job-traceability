@@ -107,8 +107,20 @@ export class JobSearchService {
     for (const provider of providerList) {
       const quotaConfig = JOB_SOURCING_CONFIG.providerQuotas[provider.name];
 
+      // Fail-closed rule: If a provider requires a quota limit but none is configured in config/env, skip it
+      if (!quotaConfig || quotaConfig.monthlyLimit === undefined || isNaN(quotaConfig.monthlyLimit)) {
+        console.warn(
+          `[QUOTA CONFIG MISSING] Provider '${provider.name}' monthly quota limit is not configured. Failing closed (skipping provider).`
+        );
+        skippedProviders.push({
+          provider: provider.name,
+          reason: `Monthly quota limit is not configured in environment/config (fail-closed rule)`,
+        });
+        continue;
+      }
+
       // Check current monthly quota in database
-      if (quotaConfig && quotaConfig.monthlyLimit !== Infinity) {
+      if (quotaConfig.monthlyLimit !== Infinity) {
         try {
           const usedThisMonth = await jobDal.getProviderUsageThisMonth(provider.name);
           const limit = quotaConfig.monthlyLimit;
