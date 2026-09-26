@@ -26,13 +26,13 @@ export class SerpApiProvider implements IJobSource {
   private fetcher: typeof fetch;
 
   constructor(apiKey?: string, fetcher: typeof fetch = fetch) {
-    this.apiKey = apiKey || process.env.SERPAPI_API_KEY || '';
+    this.apiKey = apiKey || process.env.SERPAPI_KEY || process.env.SERPAPI_API_KEY || '';
     this.fetcher = fetcher;
   }
 
   async searchJobs(query: string, location?: string, page: number = 1): Promise<NormalizedJob[]> {
     if (!this.apiKey) {
-      throw new Error('SerpAPI key is missing (set SERPAPI_API_KEY)');
+      throw new Error('SerpAPI key is missing (set SERPAPI_KEY or SERPAPI_API_KEY)');
     }
 
     const searchQuery = location && location.trim() ? `${query} in ${location}` : query;
