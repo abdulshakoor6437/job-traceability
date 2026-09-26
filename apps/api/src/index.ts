@@ -9,6 +9,7 @@ import userRoutes from './routes/user';
 import sessionRoutes from './routes/session';
 import webhookRoutes from './routes/webhooks';
 import cvRoutes from './routes/cv';
+import jobRoutes from './routes/jobs';
 import { startEmailOutboxWorker } from './services/emailOutboxWorker';
 
 // Item 2: Validate configuration at startup
@@ -42,6 +43,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/session', sessionRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/cv', cvRoutes);
+app.use('/api/jobs', jobRoutes);
 
 // Start background email outbox worker
 startEmailOutboxWorker();
