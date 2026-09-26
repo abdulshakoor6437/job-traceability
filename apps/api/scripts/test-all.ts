@@ -30,6 +30,15 @@ async function runAllTests() {
   console.log('🚀 RUNNING ALL MODULE 0, 1, 2 & 3 TEST SUITES (npm run test:all)');
   console.log('================================================================\n');
 
+  console.log('🔍 [STEP 0] Running Strict TypeScript Compile Check (tsc --noEmit)...');
+  try {
+    execSync('npx tsc --noEmit', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+    console.log('✅ TYPECHECK PASSED: 0 TypeScript compilation errors.\n');
+  } catch (err) {
+    console.error('\n❌ TYPECHECK FAILED: TypeScript compilation errors detected! Halting test suite.');
+    process.exit(1);
+  }
+
   console.log('🔧 Starting background API server for test suite...');
   await apiRunner.startServer(4000, { EMAIL_MODE: 'console' });
 

@@ -93,7 +93,7 @@ async function runRealAcceptanceSuite() {
   if (crossProviderDups.length > 0) {
     console.log(`✨ Found ${crossProviderDups.length} genuine cross-provider duplicate(s) merged across live providers:`);
     for (const dup of crossProviderDups) {
-      console.log(`  - Title: "${dup.title}", Company: "${dup.company}", Sources: [${dup.sourceProviders.join(', ')}]`);
+      console.log(`  - Title: "${dup.title}", Company: "${dup.company}", Sources: [${(dup.sourceProviders || []).join(', ')}]`);
       console.log(`    External IDs:`, dup.externalIds);
     }
   } else {

@@ -93,8 +93,8 @@ router.post('/upload', (req: AuthenticatedRequest, res: Response, next) => {
 
       // Item 3: Mark "parsing failed, retry later" rather than dropping
       const fallbackProfile = {
-        contact_info: { full_name: '', email: '', phone: '', location: '', linkedin_url: '', website: '' },
-        summary: '',
+        contact_info: { full_name: '', email: '', phone: '', location: null, linkedin_url: null, website: null },
+        summary: null,
         work_history: [],
         education: [],
         skills: [],

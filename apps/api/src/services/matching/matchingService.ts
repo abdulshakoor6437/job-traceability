@@ -182,7 +182,7 @@ export class MatchingService {
       // Acceptance Test (g): Missing or failed job embedding must be handled gracefully without crashing
       if (!jobVector || jobVector.length === 0) {
         try {
-          jobVector = await this.embeddingService.ensureJobEmbedding(job, this.embeddingProvider);
+          jobVector = await this.embeddingService.ensureJobEmbedding(job);
         } catch (err: any) {
           console.warn(`[MATCHING WARNING] Gracefully skipping job ${job.id} ("${job.title}") due to missing/failed embedding: ${err.message}`);
           continue; // Gracefully skip without crashing

@@ -49,7 +49,7 @@ async function run() {
   console.log('   - Provider Used:', aboveResult.provider);
   console.log('   - Provider Calls:', mockProvider.callCount);
 
-  if (!aboveResult.explanation || aboveResult.generated !== true || mockProvider.callCount !== 1) {
+  if (!aboveResult.explanation || aboveResult.generated !== true || (mockProvider.callCount as number) !== 1) {
     throw new Error('❌ FAILED: Above-threshold job failed to generate explanation or increment counter!');
   }
   // Verify groundedness

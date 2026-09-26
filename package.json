@@ -21,6 +21,7 @@
     "test:heartbeat": "npm --prefix apps/api run test:heartbeat",
     "test:outbox": "npm --prefix apps/api run test:outbox",
     "test:all": "npm --prefix apps/api run test:all",
+    "typecheck": "npm --prefix apps/api run typecheck",
     "build": "npm run build --workspaces"
   }
 }

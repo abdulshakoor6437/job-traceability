@@ -5,6 +5,12 @@ const str = z.unknown().transform((v) => {
   return String(v);
 });
 
+const nullableStr = z.unknown().transform((v): string | null => {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s.length > 0 ? s : null;
+});
+
 const bool = z.unknown().transform((v) => {
   if (v === true || v === 'true' || v === 1 || v === '1') return true;
   return false;
@@ -13,9 +19,9 @@ const bool = z.unknown().transform((v) => {
 export const WorkHistorySchema = z.object({
   title: str,
   company: str,
-  location: str,
+  location: nullableStr,
   start_date: str,
-  end_date: str,
+  end_date: nullableStr,
   is_current: bool,
   bullet_points: z.array(str).default([]),
 });
@@ -23,22 +29,22 @@ export const WorkHistorySchema = z.object({
 export const EducationSchema = z.object({
   institution: str,
   degree: str,
-  field_of_study: str,
-  start_date: str,
-  end_date: str,
+  field_of_study: nullableStr,
+  start_date: nullableStr,
+  end_date: nullableStr,
 });
 
 export const SkillSchema = z.object({
   skill_name: str,
-  category: str,
+  category: nullableStr,
 });
 
 export const CertificationSchema = z.object({
   name: str,
-  issuing_organization: str,
-  issue_date: str,
-  expiration_date: str,
-  credential_id: str,
+  issuing_organization: nullableStr,
+  issue_date: nullableStr,
+  expiration_date: nullableStr,
+  credential_id: nullableStr,
 });
 
 export const CvStructuredProfileSchema = z.object({
@@ -46,11 +52,11 @@ export const CvStructuredProfileSchema = z.object({
     full_name: str,
     email: str,
     phone: str,
-    location: str,
-    linkedin_url: str,
-    website: str,
+    location: nullableStr,
+    linkedin_url: nullableStr,
+    website: nullableStr,
   }).default({}),
-  summary: str,
+  summary: nullableStr,
   work_history: z.array(WorkHistorySchema).default([]),
   education: z.array(EducationSchema).default([]),
   skills: z.array(SkillSchema).default([]),
@@ -67,8 +73,8 @@ export function validateAndCleanCvProfile(input: any): {
   const profile: CvStructuredProfile = parsed.success
     ? parsed.data
     : {
-        contact_info: { full_name: '', email: '', phone: '', location: '', linkedin_url: '', website: '' },
-        summary: '',
+        contact_info: { full_name: '', email: '', phone: '', location: null, linkedin_url: null, website: null },
+        summary: null,
         work_history: [],
         education: [],
         skills: [],
