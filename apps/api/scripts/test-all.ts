@@ -21,11 +21,12 @@ const testScripts = [
   { name: 'Module 1: CV Upload, Parsing & Profile', command: 'tsx scripts/test-cv-module.ts' },
   { name: 'Module 1: Comprehensive E2E CV Suite', command: 'tsx scripts/test-cv-e2e.ts' },
   { name: 'Module 1: Real Fixtures Field-by-Field Verification', command: 'tsx scripts/verify-real-fixtures.ts' },
+  { name: 'Module 2: Job Sourcing Acceptance Suite', command: 'tsx scripts/test-module2-acceptance.ts' },
 ];
 
 async function runAllTests() {
   console.log('\n================================================================');
-  console.log('🚀 RUNNING ALL MODULE 0 & MODULE 1 TEST SUITES (npm run test:all)');
+  console.log('🚀 RUNNING ALL MODULE 0, MODULE 1 & MODULE 2 TEST SUITES (npm run test:all)');
   console.log('================================================================\n');
 
   console.log('🔧 Starting background API server for test suite...');
