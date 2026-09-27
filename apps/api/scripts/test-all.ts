@@ -23,11 +23,12 @@ const testScripts = [
   { name: 'Module 1: Real Fixtures Field-by-Field Verification', command: 'tsx scripts/verify-real-fixtures.ts' },
   { name: 'Module 2: Job Sourcing Acceptance Suite (Live)', command: 'tsx scripts/test-real-acceptance.ts' },
   { name: 'Module 3: Matching & Ranking Acceptance Suite (Tests a-g)', command: 'tsx scripts/test-module3-acceptance.ts' },
+  { name: 'Module 4: CV Tailoring Acceptance Suite (Tests a-g)', command: 'tsx scripts/test-module4-acceptance.ts' },
 ];
 
 async function runAllTests() {
   console.log('\n================================================================');
-  console.log('🚀 RUNNING ALL MODULE 0, 1, 2 & 3 TEST SUITES (npm run test:all)');
+  console.log('🚀 RUNNING ALL MODULE 0, 1, 2, 3 & 4 TEST SUITES (npm run test:all)');
   console.log('================================================================\n');
 
   console.log('🔍 [STEP 0] Running Strict TypeScript Compile Check (tsc --noEmit)...');
@@ -63,7 +64,7 @@ async function runAllTests() {
   }
 
   console.log('================================================================');
-  console.log(`🎉 ALL ${passedCount} MODULE 0, MODULE 1 & MODULE 2 TEST SUITES PASSED PERFECTLY!`);
+  console.log(`🎉 ALL ${passedCount} MODULE 0, 1, 2, 3 & 4 TEST SUITES PASSED PERFECTLY!`);
   console.log('================================================================\n');
 
   process.exit(0);
