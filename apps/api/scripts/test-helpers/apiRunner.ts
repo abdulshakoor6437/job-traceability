@@ -40,9 +40,9 @@ export class ApiRunnerHelper {
       console.error('[API RUNNER STDERR]', d.toString());
     });
 
-    // Poll /api/health until server is up (up to 15 seconds)
+    // Poll /api/health until server is up (up to 45 seconds — tsx subprocess startup is slow on Windows)
     const startTime = Date.now();
-    while (Date.now() - startTime < 15000) {
+    while (Date.now() - startTime < 45000) {
       try {
         const isUp = await this.pingHealth(port);
         if (isUp) return;

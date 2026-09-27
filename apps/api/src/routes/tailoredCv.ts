@@ -9,10 +9,9 @@ import { Router, Response } from 'express';
 import { requireAuth, AuthenticatedRequest } from '../middleware/authMiddleware';
 import { cvDal } from '../dal/cvDal';
 import { tailoredCvDal } from '../dal/tailoredCvDal';
+import { jobDal } from '../dal/jobDal';
 import { tailoringService } from '../services/tailoring/tailoringService';
 import { exportToDocx, exportToPdf } from '../services/tailoring/exportService';
-import { getDbPool } from '../dal/db';
-import { CachedJobRow } from '../dal/jobDal';
 
 const router = Router();
 router.use(requireAuth);
@@ -54,17 +53,12 @@ router.post('/generate', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    // Resolve job from shared cached_jobs (no user_id on this table by design)
-    const pool = getDbPool();
-    const [jobRows] = await pool.query<CachedJobRow[]>(
-      `SELECT id, title, description FROM cached_jobs WHERE id = ? LIMIT 1`,
-      [jobId]
-    );
-    if (jobRows.length === 0) {
+    // Resolve job from shared cached_jobs via jobDal (DAL-only rule)
+    const job = await jobDal.getJobById(jobId);
+    if (!job) {
       res.status(404).json({ error: 'Not Found', message: `Job '${jobId}' not found.` });
       return;
     }
-    const job = jobRows[0];
 
     // Resolve user's active CV profile (user-scoped)
     const activeProfile = await cvDal.getActiveProfile(userId);

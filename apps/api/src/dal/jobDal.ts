@@ -345,6 +345,19 @@ export class JobDal {
   }
 
   /**
+   * Retrieve a single cached job by its primary key.
+   * Returns null when not found. No user_id scoping — jobs are shared/global.
+   */
+  async getJobById(jobId: string): Promise<CachedJobRow | null> {
+    const pool = getDbPool();
+    const [rows] = await pool.query<CachedJobRow[]>(
+      `SELECT * FROM cached_jobs WHERE id = ? LIMIT 1`,
+      [jobId]
+    );
+    return rows.length > 0 ? rows[0] : null;
+  }
+
+  /**
    * Cleans up expired cache rows
    */
   async clearExpiredCache(): Promise<number> {

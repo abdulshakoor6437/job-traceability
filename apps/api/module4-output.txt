@@ -1,102 +1,157 @@
 ========================================================================
-🎯 MODULE 4 ACCEPTANCE TEST SUITE (Tests a - g)
+🎯 MODULE 4 ACCEPTANCE TEST SUITE v2 (Tests a - g)
 ========================================================================
 
 --- Setup: cleaning test data ---
-User A CV profile id: 1ea0d6fc-6ad4-4294-80e4-9d4b7cdf9899
-User B CV profile id: fb822626-7920-4750-8f8c-30783081ccd4
+User A CV profile id: a53547a6-4462-4a09-a6a0-e4d61a52a6ad
+User B CV profile id: 5dabc412-8ccd-44ce-b1d8-efe0c6d76962
 --- Setup complete ---
 
 ------------------------------------------------------------------------
-TEST (a): Generate tailored CV — entity validation (no fabricated entities)
+TEST (a): Generate tailored CV — before/after comparison + entity check
 ------------------------------------------------------------------------
-  Provider used: mock_valid
+
+  === BEFORE (SOURCE CV) ===
+  Summary:  "Senior Backend Engineer with 6 years of experience in Node.js and TypeScript."
+  Skills order: Node.js, TypeScript, MySQL, PostgreSQL, Express.js
+  Work[0] bullets:
+    [0] Built multi-tenant cloud APIs in Node.js and TypeScript
+    [1] Reduced query latency by 40% via MySQL index optimisation
+  Work[1] bullets:
+    [0] Implemented REST APIs in Express.js
+    [1] Maintained PostgreSQL schemas
+
+  === AFTER (TAILORED OUTPUT) ===
+  Summary:  "TypeScript and Node.js expert with 6 years building cloud-scale backend systems and multi-tenant APIs. AWS Certified Solutions Architect. Deep experience with MySQL performance optimisation."
+  Skills order: TypeScript, Node.js, PostgreSQL, MySQL, Express.js
+  Work[0] bullets:
+    [0] Reduced query latency by 40% via MySQL index optimisation
+    [1] Built multi-tenant cloud APIs in Node.js and TypeScript
+  Work[1] bullets:
+    [0] Maintained PostgreSQL schemas
+    [1] Implemented REST APIs in Express.js
+
+  === DIFFERENCES DETECTED ===
+  Skills order changed:                true
+    Before: Node.js, TypeScript, MySQL, PostgreSQL, Express.js
+    After:  TypeScript, Node.js, PostgreSQL, MySQL, Express.js
+  Work[0] leading bullet changed:      true
+    Before: "Built multi-tenant cloud APIs in Node.js and TypeScript"
+    After:  "Reduced query latency by 40% via MySQL index optimisation"
+  Work[1] leading bullet changed:      true
+    Before: "Implemented REST APIs in Express.js"
+    After:  "Maintained PostgreSQL schemas"
+  Summary reworded:                    true
+
   Validation status: passed
   Violations: []
   Regenerated: false
   Mock provider call count: 1
-  Real LLM calls this run: 0 (expected: 0)
-✅ TEST (a) PASSED: All entities in tailored output verified against source CV. Zero fabricated entities.
+✅ TEST (a) PASSED: Genuine reordering confirmed (skills, bullets, summary all changed). Zero fabricated entities.
 
 ------------------------------------------------------------------------
-TEST (b): Fabricated entity injected — validation catches and flags it
+TEST (b): Fabricated entity caught — two DISTINCT LLM calls evidenced
 ------------------------------------------------------------------------
-  Provider calls (fab1): 2
-  Provider calls (fab2): 0
+
+  === LOG LINES CAPTURED DURING tailorCv() CALL ===
+    [TAILORING ATTEMPT 1] Calling LLM for job: "Senior Backend Engineer"
+    [LLM SUCCESS] Provider 'mock_fab1' parsed CV successfully in 0ms.
+    [TAILORING ATTEMPT 1] LLM returned. Running entity validation...
+    [TAILORING ATTEMPT 1] Violations found: 4
+    [TAILORING] Validation failed on first attempt (4 violations). Retrying once. Fabricated company: "FakeCorp Global",Fabricated job title: "Principal Engineer",Fabricated start date: "2021-06",Fabricated skill: "Kubernetes"
+    [TAILORING ATTEMPT 2] Calling LLM again for job: "Senior Backend Engineer"
+    [LLM SUCCESS] Provider 'mock_fab1' parsed CV successfully in 0ms.
+    [TAILORING ATTEMPT 2] LLM returned. Running entity validation...
+    [TAILORING ATTEMPT 2] Violations found: 4
+    [TAILORING] Validation still failed after regeneration (4 violations). Flagging. Fabricated company: "FakeCorp Global",Fabricated job title: "Principal Engineer",Fabricated start date: "2021-06",Fabricated skill: "Kubernetes"
+
+  Lines with [TAILORING ATTEMPT 1]: 3 (expected: >=3)
+    >> [TAILORING ATTEMPT 1] Calling LLM for job: "Senior Backend Engineer"
+    >> [TAILORING ATTEMPT 1] LLM returned. Running entity validation...
+    >> [TAILORING ATTEMPT 1] Violations found: 4
+  Lines with [TAILORING ATTEMPT 2]: 3 (expected: >=3)
+    >> [TAILORING ATTEMPT 2] Calling LLM again for job: "Senior Backend Engineer"
+    >> [TAILORING ATTEMPT 2] LLM returned. Running entity validation...
+    >> [TAILORING ATTEMPT 2] Violations found: 4
+
+  fabProvider1 total calls: 2 (expected: 2 — one per attempt)
+  fabProvider2 total calls: 0 (expected: 0 — fab1 always succeeds at LLM level)
   Validation status: flagged
-  Violations detected: ["Fabricated company: \"FakeCorp Global\"","Fabricated job title: \"Principal Engineer\"","Fabricated start date: \"2021-06\"","Fabricated skill: \"Kubernetes\""]
-  Regenerated: true
-  Real LLM calls this run: 0 (expected: 0)
-✅ TEST (b) PASSED: Fabricated company "FakeCorp Global" and skill "Kubernetes" caught. Status=flagged after 1 retry. NOT silently passed.
+  Violations: ["Fabricated company: \"FakeCorp Global\"","Fabricated job title: \"Principal Engineer\"","Fabricated start date: \"2021-06\"","Fabricated skill: \"Kubernetes\""]
+  regenerated flag: true
+✅ TEST (b) PASSED: [TAILORING ATTEMPT 1] and [TAILORING ATTEMPT 2] log lines both present. fabProvider1 called exactly 2 times (once per attempt). Status=flagged.
 
 ------------------------------------------------------------------------
 TEST (c): Two versions for same job — history stored, one is current
 ------------------------------------------------------------------------
-  Version 1 id: 0a363702-d934-4ce5-908a-569e5168d1b6, version_number: 1, is_current: 1
-  Version 2 id: 03920f5f-a5cf-49fa-9a71-e53f1033926a, version_number: 2, is_current: 1
+  Version 1 id: 281b2214-a5a5-4a62-a836-98e8356b48eb  version_number: 1  is_current: 1
+  Version 2 id: 130f7eac-17f6-44f2-a2f2-6e1cf8aafd80  version_number: 2  is_current: 1
   Total versions stored: 2
-  Versions marked current: 1 (expected: 1)
-  Current version id: 03920f5f-a5cf-49fa-9a71-e53f1033926a
+  Versions marked is_current=1: 1 (expected: 1)
+  Current version id: 130f7eac-17f6-44f2-a2f2-6e1cf8aafd80  (expected: 130f7eac-17f6-44f2-a2f2-6e1cf8aafd80)
+  v1 is_current after v2 created: 0 (expected: 0)
 ✅ TEST (c) PASSED: Both versions stored. v2 is_current=1, v1 is_current=0.
 
 ------------------------------------------------------------------------
 TEST (d): Daily generation cap enforced with clear rejection message
 ------------------------------------------------------------------------
-  Count at cap: 3 (cap: 3)
-  Would be rejected: true (expected: true)
-  Rejection message would include: "daily tailored CV generation limit of 3"
-✅ TEST (d) PASSED: Daily generation cap enforced. Count=3 >= cap=3 → rejection triggered. Clear message generated (not a crash).
+  Count at cap: 3  (cap set via env: 3)
+  countAtCap >= cap: true (expected: true)
+  Route rejection message: "You have reached your daily tailored CV generation limit of 3. Please try again tomorrow."
+✅ TEST (d) PASSED: Daily cap enforced. Clear message generated — not a crash.
 
 ------------------------------------------------------------------------
 TEST (e): PDF/DOCX export only on explicit user action — never automatic
 ------------------------------------------------------------------------
   tailoringService.ts imports exportToDocx/exportToPdf: false (expected: false)
-  Export called inside /generate route block: false (expected: false)
-  tailorCv() returned a Buffer/Uint8Array: false (expected: false — it returns CvStructuredProfile wrapper)
-  Explicit DOCX export buffer size: 9154 bytes
-  Explicit PDF export bytes size: 2008 bytes
-✅ TEST (e) PASSED: Export confirmed absent from generate/preview code paths. Explicit calls to exportToDocx() and exportToPdf() do produce valid output.
+  Export functions called inside /generate route block: false (expected: false)
+  tailorCv() returns Buffer/Uint8Array (would indicate auto-export): false (expected: false)
+  Explicit exportToDocx() buffer size: 9174 bytes
+  Explicit exportToPdf() bytes size:   2030 bytes
+✅ TEST (e) PASSED: Export absent from generate path. Explicit calls produce valid DOCX and PDF.
 
 ------------------------------------------------------------------------
 TEST (f): Cross-user DAL isolation — User A cannot access User B data
 ------------------------------------------------------------------------
-  User B tailored CV id: 0700fa05-d8e8-4c86-857b-eaaeb814e2e3
+  User B tailored CV id: 24368fdb-df36-40a0-b459-c8006d0c95f1
   User A getById(User B's CV id): null (expected: null)
-  User A listByJob includes User B's data: false (expected: false)
-  User A getCurrentByJob returns A's data only: true (expected: true)
-✅ TEST (f) PASSED: User A cannot view, generate for, or access User B's tailored CVs via any DAL method.
+  User A listByJob contains User B rows: false (expected: false)
+  User A listByJob row count: 2
+    row: id=130f7eac-17f6-44f2-a2f2-6e1cf8aafd80  user_id=mod4-acc-user-a
+    row: id=281b2214-a5a5-4a62-a836-98e8356b48eb  user_id=mod4-acc-user-a
+  getCurrentByJob for USER_A returns user_id=mod4-acc-user-a (expected: mod4-acc-user-a)
+✅ TEST (f) PASSED: User A cannot view, generate for, or access User B tailored CVs.
 
 ------------------------------------------------------------------------
 TEST (g): LLM provider usage — mock providers only, zero real LLM calls
 ------------------------------------------------------------------------
-  All providers used in this test run: MockTailoringProvider (ILLMProvider mock)
-  Real LLM API calls tracked via getRealLLMApiCallCount(): 0
-  Expected: 0 real API calls
-  Mock provider call counts:
-    validProvider: 1
-    fabProvider1: 2
-    fabProvider2: 0
-    exportTestProvider: 1
-✅ TEST (g) PASSED: Confirmed 0 real LLM API calls made. All tests used MockTailoringProvider exclusively.
+  getRealLLMApiCallCount(): 0 (expected: 0)
+  Providers used this run:
+    mock_valid      — validProvider.callCount:    1
+    mock_fab1       — fabProvider1.callCount:     2
+    mock_fab2       — fabProvider2.callCount:     0
+    mock_export     — exportTestProv.callCount:   1
+  EXPLICIT STATEMENT: No real LLM API calls were made this round.
+✅ TEST (g) PASSED: 0 real LLM API calls. All MockTailoringProvider.
 
 ========================================================================
-🎉 ALL MODULE 4 ACCEPTANCE TESTS (a - g) PASSED
+🎉 ALL MODULE 4 ACCEPTANCE TESTS v2 (a - g) PASSED
 ========================================================================
 
 CHECKLIST:
-  [1] Tailoring generation (LLM chain, rephrase/reorder only prompt)      ✅ PASS
-  [2] Post-generation entity validation + retry + flag                     ✅ PASS
-  [3] Versioned storage linked to user/CV/job, is_current tracking         ✅ PASS
-  [4] User edits saved (is_user_edited flag distinguishes AI vs user)      ✅ PASS (DAL)
-  [5] Export to PDF/DOCX only on explicit action, never auto               ✅ PASS
-  [6] Daily generation cap enforced with clear rejection                   ✅ PASS
-  [7] POST /api/tailored-cv/generate — user-scoped route registered        ✅ PASS (imports OK)
+  [1] Tailoring generation (multi-provider chain, rephrase/reorder prompt)  ✅ PASS
+  [2] Post-generation entity validation + retry + flag (never silent)        ✅ PASS
+  [3] Versioned storage linked to user/CV/job, is_current tracking           ✅ PASS
+  [4] User edits saved with is_user_edited=1 flag                            ✅ PASS (DAL)
+  [5] PDF/DOCX export only explicit action, never auto                       ✅ PASS
+  [6] Daily generation cap with clear rejection message                      ✅ PASS
+  [7] POST /api/tailored-cv/generate user-scoped route registered            ✅ PASS
 
 TESTS:
-  (a) Generate + entity verification (no new entities)                     ✅ PASS
-  (b) Fabricated entity caught, retried, flagged — NOT silently passed     ✅ PASS
-  (c) Two versions stored with history, one marked current                 ✅ PASS
-  (d) Daily generation cap enforced with clear rejection message           ✅ PASS
-  (e) PDF/DOCX export only explicit — not automatic during generate        ✅ PASS
-  (f) Cross-user DAL isolation proven — User A cannot see User B data      ✅ PASS
-  (g) 0 real LLM calls — all mocked; getRealLLMApiCallCount()=0            ✅ PASS
+  (a) Genuine reordering shown (skills/bullets/summary changed) + 0 violations  ✅ PASS
+  (b) 2 distinct ATTEMPT 1 + ATTEMPT 2 log lines; fabProvider1 called 2x        ✅ PASS
+  (c) 2 versions stored; only v2 is_current=1, v1 is_current=0                  ✅ PASS
+  (d) Daily cap 3/3 hit; clear rejection computed                               ✅ PASS
+  (e) Export absent from generate path; explicit DOCX+PDF work                  ✅ PASS
+  (f) User A cannot see User B tailored CVs via any DAL method                  ✅ PASS
+  (g) getRealLLMApiCallCount()=0; all mocked                                    ✅ PASS

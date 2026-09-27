@@ -193,8 +193,11 @@ export class TailoringService {
     const prompt = buildTailoringPrompt(input);
 
     // First attempt
+    console.log(`[TAILORING ATTEMPT 1] Calling LLM for job: "${input.jobTitle}"`);
     const { profile: firstAttempt, usedProvider } = await this.llmManager.parseCvWithFallback(prompt);
+    console.log(`[TAILORING ATTEMPT 1] LLM returned. Running entity validation...`);
     const firstViolations = validateEntities(sourceEntitySet, firstAttempt);
+    console.log(`[TAILORING ATTEMPT 1] Violations found: ${firstViolations.length}`);
 
     if (firstViolations.length === 0) {
       return {
@@ -211,9 +214,12 @@ export class TailoringService {
       `[TAILORING] Validation failed on first attempt (${firstViolations.length} violations). Retrying once.`,
       firstViolations
     );
+    console.log(`[TAILORING ATTEMPT 2] Calling LLM again for job: "${input.jobTitle}"`);
     const { profile: secondAttempt, usedProvider: usedProvider2 } =
       await this.llmManager.parseCvWithFallback(prompt);
+    console.log(`[TAILORING ATTEMPT 2] LLM returned. Running entity validation...`);
     const secondViolations = validateEntities(sourceEntitySet, secondAttempt);
+    console.log(`[TAILORING ATTEMPT 2] Violations found: ${secondViolations.length}`);
 
     if (secondViolations.length === 0) {
       return {

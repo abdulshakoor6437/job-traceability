@@ -583,14 +583,15 @@ async function runAllTests() {
     [realUserId]
   );
 
-  // Poison: title of 300 chars exceeds VARCHAR(255) → DB throws mid-insert
+  // Poison: BigInt in bullet_points -> JSON.stringify throws after parent insert -> tests transaction rollback
   const poisonedProfile: any = {
     contact_info: { full_name: 'TxnTest', email: 'txn@test.com', phone: '555-0001', location: 'TX', linkedin_url: '', website: '' },
     summary: 'Rollback test',
     work_history: [{
-      title: 'A'.repeat(300), // Will blow VARCHAR(255)
+      title: 'Software Engineer',
       company: 'FailCorp', location: 'TX', start_date: '2020-01', end_date: 'Present',
-      is_current: true, bullet_points: ['Rollback'],
+      is_current: true,
+      bullet_points: [BigInt(12345)],
     }],
     education: [], skills: [], certifications: [],
   };
@@ -606,7 +607,7 @@ async function runAllTests() {
     _log(`     "${txnErrMsg.substring(0, 150)}..."`);
   }
 
-  if (!txnThrew) fail('Item 6', 'createCvProfile did NOT throw on poisoned 300-char title — DB may allow it');
+  if (!txnThrew) fail('Item 6', 'createCvProfile did NOT throw on poisoned title — DB may allow it');
 
   // Verify: NO orphaned cv_profiles or cv_work_history rows added
   const [[orphanP]] = await pool.query<any[]>(
