@@ -85,7 +85,9 @@ async function runMigrations() {
       .filter((s) => s.length > 0);
 
     for (const statement of statements) {
-      await pool.execute(statement);
+      // Use query() not execute() — DDL (CREATE TABLE, ALTER TABLE) is not supported
+      // by the prepared-statement protocol that execute() uses in some MySQL versions.
+      await pool.query(statement);
     }
 
     await pool.execute(
