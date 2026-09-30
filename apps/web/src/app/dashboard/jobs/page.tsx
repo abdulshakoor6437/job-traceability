@@ -269,47 +269,59 @@ export default function JobMatchesPage() {
         ) : (
           /* 4. Ranked List Cards */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {matches.map((m, idx) => (
-              <div
-                key={m.job_id || idx}
-                className="card"
-                style={{
-                  margin: 0,
-                  opacity: m.is_excluded ? 0.7 : 1,
-                  borderLeft: m.is_excluded ? '4px solid #ef4444' : '4px solid #2563eb',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <h3 style={{ margin: '0 0 6px 0', fontSize: '18px' }}>
-                      #{idx + 1} {m.title}
-                    </h3>
-                    <p style={{ margin: '0 0 8px 0', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      🏢 {m.company} {m.location ? `• 📍 ${m.location}` : ''} {m.remote ? '• 🌐 Remote' : ''}
+            {matches.map((m, idx) => {
+              const isExcl = Boolean(m.is_excluded || (m as any).isExcluded);
+              const exclReason = m.excluded_reason || (m as any).excludedReason;
+              const jobId = m.job_id || (m as any).jobId;
+
+              return (
+                <div
+                  key={jobId || idx}
+                  className="card"
+                  style={{
+                    margin: 0,
+                    opacity: isExcl ? 0.75 : 1,
+                    borderLeft: isExcl ? '5px solid #ef4444' : '4px solid #2563eb',
+                    backgroundColor: isExcl ? '#fef2f2' : '#ffffff',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <h3 style={{ margin: '0 0 6px 0', fontSize: '18px' }}>
+                        #{idx + 1} {m.title}
+                      </h3>
+                      <p style={{ margin: '0 0 8px 0', fontWeight: 600, color: 'var(--text-muted)' }}>
+                        🏢 {m.company} {m.location ? `• 📍 ${m.location}` : ''} {m.remote ? '• 🌐 Remote' : ''}
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                      {isExcl ? (
+                        <span className="badge badge-error" style={{ fontSize: '13px', padding: '4px 10px', background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171' }}>
+                          🚫 EXCLUDED ({exclReason || 'Precondition Failed'})
+                        </span>
+                      ) : (
+                        <span className={`badge ${getScoreBadgeClass(m.score)}`} style={{ fontSize: '14px', padding: '4px 10px' }}>
+                          {m.score}% Match — {m.label}
+                        </span>
+                      )}
+                      {getStatusBadge(jobId)}
+                    </div>
+                  </div>
+
+                  {/* Match Explanation */}
+                  {m.explanation && (
+                    <p style={{ fontSize: '13px', background: isExcl ? '#fff5f5' : '#f8fafc', padding: '10px', borderRadius: '6px', margin: '12px 0 0 0' }}>
+                      💡 <strong>Match Fit:</strong> {m.explanation}
                     </p>
-                  </div>
+                  )}
 
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                    <span className={`badge ${getScoreBadgeClass(m.score)}`} style={{ fontSize: '14px', padding: '4px 10px' }}>
-                      {m.score}% Match — {m.label}
-                    </span>
-                    {getStatusBadge(m.job_id)}
-                  </div>
-                </div>
-
-                {/* Match Explanation */}
-                {m.explanation && (
-                  <p style={{ fontSize: '13px', background: '#f8fafc', padding: '10px', borderRadius: '6px', margin: '12px 0 0 0' }}>
-                    💡 <strong>Match Fit:</strong> {m.explanation}
-                  </p>
-                )}
-
-                {/* Excluded Reason Warning */}
-                {Boolean(m.is_excluded) && (
-                  <div className="alert-error" style={{ margin: '12px 0 0 0', padding: '8px 12px', fontSize: '12px' }}>
-                    🚫 <strong>Excluded Job:</strong> {m.excluded_reason || 'Filtered out by score threshold or criteria'}
-                  </div>
-                )}
+                  {/* Excluded Reason Warning */}
+                  {isExcl && (
+                    <div className="alert-error" style={{ margin: '12px 0 0 0', padding: '8px 12px', fontSize: '12px', background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b' }}>
+                      🚫 <strong>Excluded Job:</strong> {exclReason || 'Filtered out by score threshold or criteria'}
+                    </div>
+                  )}
 
                 {/* Card Actions */}
                 <div style={{ marginTop: '16px', display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -336,7 +348,8 @@ export default function JobMatchesPage() {
                   </button>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
 

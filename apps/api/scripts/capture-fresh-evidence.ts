@@ -94,8 +94,10 @@ async function captureFreshEvidence() {
     }
   }
 
-  // Clear caches and delete broken job embeddings
+  // Clear all stale match & cache tables in DB completely
+  await pool.execute('DELETE FROM user_job_matches');
   await pool.execute('DELETE FROM user_match_cache');
+  await pool.execute('DELETE FROM job_search_cache_entries');
   await pool.execute('DELETE FROM job_search_cache');
   await pool.execute('DELETE FROM job_embeddings WHERE job_id LIKE "%broken%" OR job_id = "acc-job-broken-embedding"');
 
@@ -183,19 +185,22 @@ async function captureFreshEvidence() {
 
   const page = await browser.newPage();
 
-  // Set session_token cookie on localhost
   await page.setCookie({
     name: 'session_token',
     value: sessionToken,
-    domain: 'localhost',
+    url: 'http://localhost:3000',
     path: '/',
     httpOnly: true
   });
 
-  // 3. CAPTURE ITEM 1(a): FRESH Search result showing fresh-search badge
-  console.log('🔍 Navigating to http://localhost:3000/dashboard/jobs...');
+  console.log('🔍 Navigating directly to http://localhost:3000/dashboard/jobs...');
   await page.goto('http://localhost:3000/dashboard/jobs', { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !document.querySelector('.loading-container'), { timeout: 45000 });
+
+  await page.waitForSelector('button[type="submit"]', { timeout: 60000 });
+  await page.waitForFunction(() => {
+    const btn = document.querySelector('button[type="submit"]') as HTMLButtonElement;
+    return btn && !btn.disabled;
+  }, { timeout: 60000 });
 
   console.log('📸 Item 1(a): Executing FRESH search (Bypass Cache checked)...');
   // Check "Force Fresh Search" checkbox

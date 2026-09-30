@@ -11,19 +11,24 @@ export interface IFitExplanationProvider {
   }): Promise<string>;
 }
 
-export function sanitizeFitExplanation(text: string, jobTitle: string): string {
+export function sanitizeFitExplanation(text: string | null | undefined, jobTitle: string): string {
   if (!text || !text.trim()) {
     return `Strong background alignment with ${jobTitle} core requirements.`;
   }
   let clean = text.trim();
 
   // Fix broken interpolation phrases like "expertise in ." or "expertise in ."
-  clean = clean.replace(/\bbased on verified expertise in\s*\./gi, 'based on relevant candidate qualifications.');
-  clean = clean.replace(/\bexpertise in\s*\./gi, 'expertise in relevant core skills.');
-  clean = clean.replace(/\bin\s+\./gi, '.');
+  clean = clean.replace(/based\s+on\s+verified\s+expertise\s+in\s*\./gi, 'based on relevant candidate qualifications.');
+  clean = clean.replace(/verified\s+expertise\s+in\s*\./gi, 'verified expertise in core software technologies.');
+  clean = clean.replace(/expertise\s+in\s*\./gi, 'expertise in relevant core skills.');
+  clean = clean.replace(/\bin\s*\./gi, '.');
   clean = clean.replace(/\bin\s*,\s*\./gi, '.');
   clean = clean.replace(/\s+([.,!?;:])/g, '$1');
   clean = clean.replace(/\s{2,}/g, ' ');
+
+  if (clean.includes('in .') || clean.endsWith(' in.') || clean.endsWith(' in .')) {
+    clean = clean.replace(/in\s*\./gi, 'in core technical domains.');
+  }
 
   if (clean.length < 10) {
     return `Strong background alignment with ${jobTitle} core requirements.`;

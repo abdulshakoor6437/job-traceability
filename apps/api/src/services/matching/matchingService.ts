@@ -75,7 +75,7 @@ export class MatchingService {
       label: r.label as any,
       isExcluded: Boolean(r.is_excluded),
       excludedReason: r.excluded_reason || null,
-      explanation: r.explanation || null,
+      explanation: r.explanation ? sanitizeFitExplanation(r.explanation, r.title || 'the role') : null,
       rankOrder: r.rank_order,
     };
   }

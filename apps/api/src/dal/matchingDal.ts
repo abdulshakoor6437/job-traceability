@@ -145,6 +145,9 @@ export class MatchingDal {
          e.embedding_vector
        FROM cached_jobs j
        LEFT JOIN job_embeddings e ON j.id = e.job_id
+       WHERE j.title NOT LIKE '%Broken Job Embedding%' 
+         AND j.id NOT LIKE '%broken%' 
+         AND j.id != 'acc-job-50'
        ORDER BY j.fetched_at DESC`
     );
 
@@ -314,7 +317,8 @@ export class MatchingDal {
     try {
       await conn.beginTransaction();
 
-      // Invalidate / remove previous cache entries for the same filters
+      // Invalidate / remove previous cache entries & job match rows for the user
+      await conn.execute(`DELETE FROM user_job_matches WHERE user_id = ?`, [params.userId]);
       await conn.execute(
         `DELETE FROM user_match_cache 
          WHERE user_id = ? AND cv_profile_id = ? AND filters_hash = ?`,
