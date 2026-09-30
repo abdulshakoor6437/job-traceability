@@ -106,7 +106,7 @@ export class EmbeddingService {
 
     // Check existing
     const existing = await matchingDal.getJobEmbedding(job.id);
-    if (existing && existing.textHash === textHash) {
+    if (existing && existing.textHash === textHash && existing.model === this.provider.model) {
       return existing.vector;
     }
 
@@ -174,7 +174,7 @@ export class EmbeddingService {
 
     // Check existing
     const existing = await matchingDal.getCvProfileEmbedding(userId, cvProfileId);
-    if (existing && existing.textHash === textHash) {
+    if (existing && existing.textHash === textHash && existing.model === this.provider.model) {
       return existing.vector;
     }
 

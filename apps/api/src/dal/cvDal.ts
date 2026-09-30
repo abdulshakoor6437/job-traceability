@@ -137,6 +137,12 @@ export class CvDal {
 
       const profileId = crypto.randomUUID();
       const contact = structuredData.contact_info || {};
+      const fullName = contact.full_name || (structuredData as any).full_name || null;
+      const email = contact.email || (structuredData as any).email || null;
+      const phone = contact.phone || (structuredData as any).phone || null;
+      const location = contact.location || (structuredData as any).location || null;
+      const linkedinUrl = contact.linkedin_url || (structuredData as any).linkedin_url || null;
+      const website = contact.website || (structuredData as any).website || null;
 
       await conn.execute(
         `INSERT INTO cv_profiles (id, user_id, cv_file_id, version_number, is_active, needs_review, parsing_status, parsing_error, full_name, email, phone, location, linkedin_url, website, summary)
@@ -149,12 +155,12 @@ export class CvDal {
           needsReview ? 1 : 0,
           parsingStatus,
           parsingError,
-          contact.full_name || null,
-          contact.email || null,
-          contact.phone || null,
-          contact.location || null,
-          contact.linkedin_url || null,
-          contact.website || null,
+          fullName,
+          email,
+          phone,
+          location,
+          linkedinUrl,
+          website,
           structuredData.summary || null,
         ]
       );
@@ -364,17 +370,24 @@ export class CvDal {
       }
 
       const contact = updatedData.contact_info || {};
+      const fullName = contact.full_name !== undefined ? contact.full_name : (updatedData as any).full_name;
+      const email = contact.email !== undefined ? contact.email : (updatedData as any).email;
+      const phone = contact.phone !== undefined ? contact.phone : (updatedData as any).phone;
+      const location = contact.location !== undefined ? contact.location : (updatedData as any).location;
+      const linkedinUrl = contact.linkedin_url !== undefined ? contact.linkedin_url : (updatedData as any).linkedin_url;
+      const website = contact.website !== undefined ? contact.website : (updatedData as any).website;
+
       await conn.execute(
         `UPDATE cv_profiles SET
            full_name = ?, email = ?, phone = ?, location = ?, linkedin_url = ?, website = ?, summary = ?, needs_review = 0, updated_at = NOW()
          WHERE id = ? AND user_id = ?`,
         [
-          contact.full_name || null,
-          contact.email || null,
-          contact.phone || null,
-          contact.location || null,
-          contact.linkedin_url || null,
-          contact.website || null,
+          fullName || null,
+          email || null,
+          phone || null,
+          location || null,
+          linkedinUrl || null,
+          website || null,
           updatedData.summary || null,
           profileId,
           userId,

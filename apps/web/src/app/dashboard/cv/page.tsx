@@ -144,7 +144,8 @@ export default function CvManagementPage() {
   };
 
   const populateForm = (p: FullCvProfile) => {
-    const prof = p.profile;
+    if (!p) return;
+    const prof = p.profile || (p as any);
     setContact({
       full_name: prof.full_name || '',
       email: prof.email || '',

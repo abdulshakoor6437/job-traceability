@@ -1,0 +1,35 @@
+
+================================================================
+🚀 MODULE 5: DASHBOARD UI ACCEPTANCE TEST SUITE (RE-CAPTURE)
+================================================================
+
+🔧 Starting API Server (port 4000) & Next.js Web App (port 3000)...
+✅ API Server listening on http://localhost:4000
+⏳ Waiting for Next.js Web App (http://localhost:3000) to respond...
+[WEB SERVER STDERR] ⨯ Failed to start server
+[WEB SERVER STDERR] Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:2008:16)
+    at listenInCluster (node:net:2065:12)
+    at Server.listen (node:net:2170:7)
+    at C:\Users\Admin\Desktop\Job apply agent\node_modules\next\dist\server\lib\start-server.js:280:16
+    at new Promise (<anonymous>)
+    at startServer (C:\Users\Admin\Desktop\Job apply agent\node_modules\next\dist\server\lib\start-server.js:191:11)
+    at C:\Users\Admin\Desktop\Job apply agent\node_modules\next\dist\server\lib\start-server.js:310:52
+    at Span.traceAsyncFn (C:\Users\Admin\Desktop\Job apply agent\node_modules\next\dist\trace\trace.js:154:26)
+    at process.<anonymous> (C:\Users\Admin\Desktop\Job apply agent\node_modules\next\dist\server\lib\start-server.js:310:35)
+    at process.emit (node:events:509:28) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3000
+}
+[WEB SERVER OUTPUT] [?25h
+[WEB SERVER OUTPUT] 
+✅ Next.js Web Server listening on http://localhost:3000
+▶ [TEST a] Starting Full Manual Walkthrough via Browser Automation...
+   1. Navigating to Signup page...
+   ✅ Step 1 (Login & Shell): Saved screenshot to C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\step1_login_dashboard.png
+   3. Navigating to CV Management page & uploading PDF...
+❌ MODULE 5 ACCEPTANCE TEST FAILED: net::ERR_CONNECTION_REFUSED at http://localhost:3000/dashboard/cv
+🧹 Stopping background servers...

@@ -179,8 +179,8 @@ export class MatchingService {
     for (const job of cachedJobs) {
       let jobVector = job.embeddingVector;
 
-      // Acceptance Test (g): Missing or failed job embedding must be handled gracefully without crashing
-      if (!jobVector || jobVector.length === 0) {
+      // Acceptance Test (g): Missing, empty or dimension-mismatched job embedding must be re-embedded or handled gracefully
+      if (!jobVector || jobVector.length === 0 || jobVector.length !== cvVector.length) {
         try {
           jobVector = await this.embeddingService.ensureJobEmbedding(job);
         } catch (err: any) {
