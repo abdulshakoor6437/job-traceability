@@ -194,8 +194,9 @@ export class MatchingService {
         continue;
       }
 
-      // Check red-flag filter (Item 3)
-      const screenResult = screenJobDescription(job.description || '');
+      // Check red-flag filter (Item 3) - screen both job title and description
+      const fullTextToScreen = `${job.title}\n${job.description || ''}`;
+      const screenResult = screenJobDescription(fullTextToScreen);
 
       // Compute Cosine Similarity & Score (Item 2)
       const similarity = computeCosineSimilarity(cvVector, jobVector);

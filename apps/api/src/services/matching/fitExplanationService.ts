@@ -11,6 +11,27 @@ export interface IFitExplanationProvider {
   }): Promise<string>;
 }
 
+export function sanitizeFitExplanation(text: string, jobTitle: string): string {
+  if (!text || !text.trim()) {
+    return `Strong background alignment with ${jobTitle} core requirements.`;
+  }
+  let clean = text.trim();
+
+  // Fix broken interpolation phrases like "expertise in ." or "expertise in ."
+  clean = clean.replace(/\bbased on verified expertise in\s*\./gi, 'based on relevant candidate qualifications.');
+  clean = clean.replace(/\bexpertise in\s*\./gi, 'expertise in relevant core skills.');
+  clean = clean.replace(/\bin\s+\./gi, '.');
+  clean = clean.replace(/\bin\s*,\s*\./gi, '.');
+  clean = clean.replace(/\s+([.,!?;:])/g, '$1');
+  clean = clean.replace(/\s{2,}/g, ' ');
+
+  if (clean.length < 10) {
+    return `Strong background alignment with ${jobTitle} core requirements.`;
+  }
+
+  return clean;
+}
+
 // ---------------------------------------------------------------------------
 // Mock Fit Explanation Provider (cost discipline: zero quota for routine tests)
 // ---------------------------------------------------------------------------
@@ -36,15 +57,21 @@ export class MockFitExplanationProvider implements IFitExplanationProvider {
     }
 
     const { cvSkills, jobTitle, jobDescription } = params;
+    const validSkills = (cvSkills || []).filter((s) => s && s.trim().length > 0);
+
     // Ground strictly on actual CV skills found in job description or role
-    const matched = cvSkills.filter((s) =>
+    const matched = validSkills.filter((s) =>
       jobDescription.toLowerCase().includes(s.toLowerCase()) ||
       jobTitle.toLowerCase().includes(s.toLowerCase())
     );
 
     const skillsStr = matched.length > 0
       ? matched.slice(0, 3).join(', ')
-      : cvSkills.slice(0, 2).join(', ');
+      : validSkills.slice(0, 2).join(', ');
+
+    if (!skillsStr) {
+      return `Strong match for ${jobTitle} based on candidate qualifications. Background aligns directly with core job requirements.`;
+    }
 
     return `Strong match for ${jobTitle} based on verified expertise in ${skillsStr}. Background aligns directly with core job requirements.`;
   }
@@ -251,7 +278,8 @@ export class FitExplanationService {
           jobDescription: params.jobDescription,
         });
 
-        return { explanation: text, generated: true, provider: provider.name };
+        const sanitized = sanitizeFitExplanation(text, params.jobTitle);
+        return { explanation: sanitized, generated: true, provider: provider.name };
       } catch (err: any) {
         lastError = err;
         console.warn(`[FIT EXPLANATION] Provider '${provider.name}' failed: ${err.message}. Trying next provider...`);
@@ -259,8 +287,9 @@ export class FitExplanationService {
     }
 
     console.error(`[FIT EXPLANATION] All providers failed: ${lastError?.message}`);
+    const fallbackText = `Strong background alignment with ${params.jobTitle} core requirements.`;
     return {
-      explanation: `Strong background alignment with ${params.jobTitle} core requirements.`,
+      explanation: sanitizeFitExplanation(fallbackText, params.jobTitle),
       generated: true,
       provider: 'static_fallback',
     };
