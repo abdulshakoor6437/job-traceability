@@ -56,8 +56,9 @@ async function captureFreshEvidence() {
         { skill_name: 'Node.js', category: 'Backend' },
         { skill_name: 'MySQL', category: 'Database' }
       ],
-      work_experience: [
+      work_history: [
         {
+          title: 'Senior Fullstack Developer',
           job_title: 'Senior Fullstack Developer',
           company: 'Tech Solutions',
           start_date: '2021-01',
@@ -78,7 +79,25 @@ async function captureFreshEvidence() {
       `UPDATE cv_profiles SET full_name = ?, email = ?, phone = ?, location = ? WHERE user_id = ? AND is_active = 1`,
       ['Alex Developer', email, '555-0199', 'San Francisco, CA', userId]
     );
+    // Ensure work history is inserted for active profile if missing
+    const [pRows]: any = await pool.query('SELECT id FROM cv_profiles WHERE user_id = ? AND is_active = 1', [userId]);
+    if (pRows.length > 0) {
+      const activeProfId = pRows[0].id;
+      const [wRows]: any = await pool.query('SELECT id FROM cv_work_history WHERE cv_profile_id = ?', [activeProfId]);
+      if (wRows.length === 0) {
+        await pool.execute(
+          `INSERT INTO cv_work_history (id, cv_profile_id, user_id, title, company, location, start_date, end_date, is_current, bullet_points, display_order)
+           VALUES (?, ?, ?, 'Senior Fullstack Developer', 'Tech Solutions', 'San Francisco, CA', '2021-01', NULL, 1, '["Built React web apps", "Designed Node.js REST APIs"]', 0)`,
+          [`work-${Date.now()}`, activeProfId, userId]
+        );
+      }
+    }
   }
+
+  // Clear caches and delete broken job embeddings
+  await pool.execute('DELETE FROM user_match_cache');
+  await pool.execute('DELETE FROM job_search_cache');
+  await pool.execute('DELETE FROM job_embeddings WHERE job_id LIKE "%broken%" OR job_id = "acc-job-broken-embedding"');
 
   // Ensure test jobs exist in cached_jobs
   const testJobs = [

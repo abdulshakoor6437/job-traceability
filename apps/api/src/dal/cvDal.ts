@@ -167,7 +167,8 @@ export class CvDal {
 
       // Insert work history
       let order = 0;
-      for (const w of structuredData.work_history || []) {
+      const workList = structuredData.work_history || (structuredData as any).work_experience || (structuredData as any).workHistory || (structuredData as any).experience || [];
+      for (const w of workList) {
         await conn.execute(
           `INSERT INTO cv_work_history (id, cv_profile_id, user_id, title, company, location, start_date, end_date, is_current, bullet_points, display_order)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -175,7 +176,7 @@ export class CvDal {
             crypto.randomUUID(),
             profileId,
             userId,
-            w.title || '',
+            w.title || (w as any).job_title || '',
             w.company || null,
             w.location || null,
             w.start_date || null,
@@ -402,7 +403,8 @@ export class CvDal {
 
       // Re-insert work history
       let order = 0;
-      for (const w of updatedData.work_history || []) {
+      const updateWorkList = updatedData.work_history || (updatedData as any).work_experience || (updatedData as any).workHistory || (updatedData as any).experience || [];
+      for (const w of updateWorkList) {
         await conn.execute(
           `INSERT INTO cv_work_history (id, cv_profile_id, user_id, title, company, location, start_date, end_date, is_current, bullet_points, display_order)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -410,7 +412,7 @@ export class CvDal {
             crypto.randomUUID(),
             profileId,
             userId,
-            w.title || '',
+            w.title || (w as any).job_title || '',
             w.company || null,
             w.location || null,
             w.start_date || null,

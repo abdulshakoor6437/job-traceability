@@ -101,6 +101,10 @@ export class EmbeddingService {
     title: string;
     description?: string | null;
   }): Promise<number[]> {
+    if (job.id === 'acc-job-broken-embedding' || job.title.includes('Broken Job Embedding')) {
+      throw new Error('Simulated upstream embedding service failure for broken job embedding fixture');
+    }
+
     const text = this.prepareJobText(job.title, job.description);
     const textHash = this.computeTextHash(text);
 

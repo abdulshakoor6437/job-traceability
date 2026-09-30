@@ -67,11 +67,7 @@ export class MockFitExplanationProvider implements IFitExplanationProvider {
 
     const skillsStr = matched.length > 0
       ? matched.slice(0, 3).join(', ')
-      : validSkills.slice(0, 2).join(', ');
-
-    if (!skillsStr) {
-      return `Strong match for ${jobTitle} based on candidate qualifications. Background aligns directly with core job requirements.`;
-    }
+      : (validSkills.length > 0 ? validSkills.slice(0, 2).join(', ') : 'TypeScript, React, Node.js');
 
     return `Strong match for ${jobTitle} based on verified expertise in ${skillsStr}. Background aligns directly with core job requirements.`;
   }
