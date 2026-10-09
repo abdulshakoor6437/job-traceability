@@ -3,6 +3,7 @@ import { config } from '../src/config/env';
 import { getDbPool } from '../src/dal/db';
 import { authDal } from '../src/dal/authDal';
 import { processOutboxBatch } from '../src/services/emailOutboxWorker';
+import { apiRunner } from './test-helpers/apiRunner';
 
 const API_HOST = '127.0.0.1';
 const API_PORT = config.port;
@@ -64,6 +65,10 @@ async function runAcceptanceTest() {
   console.log('\n================================================================');
   console.log('🧪 RUNNING STRICT ACCEPTANCE, ISOLATION & SESSION TIMEOUT TESTS');
   console.log('================================================================\n');
+
+  await apiRunner.startServer(API_PORT, { EMAIL_MODE: 'console' });
+
+  try {
 
   const pool = getDbPool();
   try {
@@ -229,10 +234,13 @@ async function runAcceptanceTest() {
   }
   console.log('   ✅ Immediate Revocation VERIFIED.');
 
-  console.log('\n================================================================');
-  console.log('🎉 ALL STRICT ACCEPTANCE & ISOLATION TESTS PASSED PERFECTLY!');
-  console.log('================================================================\n');
-
+    console.log('\n================================================================');
+    console.log('🎉 ALL STRICT ACCEPTANCE & ISOLATION TESTS PASSED PERFECTLY!');
+    console.log('================================================================\n');
+  } finally {
+    await apiRunner.stopServer(API_PORT);
+    try { const pool = getDbPool(); await pool.end(); } catch {}
+  }
   process.exit(0);
 }
 

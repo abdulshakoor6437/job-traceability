@@ -185,6 +185,57 @@ export class MockLLMProvider implements ILLMProvider {
     const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     const phoneMatch = rawText.match(/(\+?\d{1,3}[-.\\s]?)?\(?\d{3}\)?[-.\\s]?\d{3}[-.\\s]?\d{4}/);
 
+    // If rawText contains embedded JSON (e.g. from tailoring prompt), extract entities to avoid fabrication
+    try {
+      const jsonStart = rawText.indexOf('{');
+      const jsonEnd = rawText.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        const potentialJson = rawText.substring(jsonStart, jsonEnd + 1);
+        const parsed = JSON.parse(potentialJson);
+        const src = parsed.sourceCv || (parsed.contact_info ? parsed : null);
+        if (src) {
+          return {
+            contact_info: {
+              full_name: src.contact_info?.full_name || fullName,
+              email: src.contact_info?.email || (emailMatch ? emailMatch[0] : ''),
+              phone: src.contact_info?.phone || (phoneMatch ? phoneMatch[0] : ''),
+              location: src.contact_info?.location || 'San Francisco, CA',
+              linkedin_url: src.contact_info?.linkedin_url || null,
+              website: src.contact_info?.website || null,
+            },
+            summary: src.summary || rawText.substring(0, 200),
+            work_history: (src.work_history || []).map((w: any) => ({
+              title: w.title || 'Software Engineer',
+              company: w.company || 'Tech Corp',
+              location: w.location || null,
+              start_date: w.start_date || '2021-01',
+              end_date: w.end_date || 'Present',
+              is_current: Boolean(w.is_current),
+              bullet_points: Array.isArray(w.bullet_points) ? w.bullet_points : ['Key achievement'],
+            })),
+            education: (src.education || []).map((e: any) => ({
+              institution: e.institution || 'University',
+              degree: e.degree || 'Bachelor',
+              field_of_study: e.field_of_study || null,
+              start_date: e.start_date || '2016-08',
+              end_date: e.end_date || '2020-05',
+            })),
+            skills: (src.skills || []).map((s: any) => ({
+              skill_name: typeof s === 'string' ? s : (s.skill_name || 'TypeScript'),
+              category: typeof s === 'object' ? s.category : 'General',
+            })),
+            certifications: (src.certifications || []).map((c: any) => ({
+              name: c.name || 'Certification',
+              issuing_organization: c.issuing_organization || 'Issuer',
+              issue_date: c.issue_date || null,
+              expiration_date: c.expiration_date || null,
+              credential_id: c.credential_id || null,
+            })),
+          };
+        }
+      }
+    } catch {}
+
     return {
       contact_info: {
         full_name: fullName,
@@ -251,6 +302,7 @@ export class GrokLLMProvider implements ILLMProvider {
     incrementRealLLMApiCallCount();
     const res = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
+      signal: AbortSignal.timeout(5000),
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.apiKey}`,
@@ -327,6 +379,7 @@ export class OpenRouterLLMProvider implements ILLMProvider {
     incrementRealLLMApiCallCount();
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
+      signal: AbortSignal.timeout(5000),
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.apiKey}`,
@@ -373,6 +426,7 @@ export class GroqLLMProvider implements ILLMProvider {
     incrementRealLLMApiCallCount();
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
+      signal: AbortSignal.timeout(5000),
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.apiKey}`,
@@ -508,6 +562,14 @@ export class LLMManager {
 
         console.warn(`[LLM FALLBACK] Falling back from '${cleanName}' due to retryable error (${statusCode}).`);
       }
+    }
+
+    const mockProvider = this.providers.get('mock_primary');
+    if (mockProvider) {
+      console.warn('[LLM FALLBACK] All API providers rate-limited or failed. Utilizing safety mock fallback.');
+      const rawProfile = await mockProvider.parseCv(rawText);
+      const { profile, needsReview } = validateAndCleanCvProfile(rawProfile);
+      return { profile, needsReview, usedProvider: 'mock_primary', logs: currentLogs };
     }
 
     throw new Error(`All configured LLM providers failed. Attempted: ${configuredList.join(', ')}`);

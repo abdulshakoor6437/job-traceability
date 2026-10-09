@@ -46,10 +46,10 @@ async function testRealMatchingFlow() {
       website: 'https://alexdev.io',
       summary: 'Senior Fullstack Software Engineer with 5 years experience building web apps with TypeScript, React, Node.js, Next.js, and MySQL.',
       skills: [
-        { name: 'TypeScript', category: 'Language' },
-        { name: 'React', category: 'Frontend' },
-        { name: 'Node.js', category: 'Backend' },
-        { name: 'MySQL', category: 'Database' }
+        { skill_name: 'TypeScript', category: 'Language' },
+        { skill_name: 'React', category: 'Frontend' },
+        { skill_name: 'Node.js', category: 'Backend' },
+        { skill_name: 'MySQL', category: 'Database' }
       ],
       work_experience: [
         {
@@ -66,7 +66,8 @@ async function testRealMatchingFlow() {
       education: [],
       projects: [],
       certifications: []
-    }
+    } as any,
+    false
   );
 
   // 3. Ensure test jobs exist in cached_jobs

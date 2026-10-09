@@ -266,7 +266,7 @@ async function runAcceptanceTests() {
 
   const callsAfterBelow = freshProvider.callCount;
 
-  // Job with score = 85 (>= 60)
+  // Job with score = 85 (>= 60)                                        
   const aboveThresholdResult = await freshFitService.explainIfEligible({
     score: 85,
     cvSummary: 'Backend developer',

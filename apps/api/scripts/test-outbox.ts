@@ -89,6 +89,9 @@ async function runOutboxTest() {
     (config.email as any).smtpSecure = false;
     (config.email as any).from = 'noreply@testdomain.com';
 
+    const cleanPool = getDbPool();
+    await cleanPool.execute('DELETE FROM email_outbox');
+
     // 1️⃣ Suppressed Recipient Test
     console.log('[1] Testing Suppressed Recipient Handling & Payload Blanking...');
     const suppressedEmail = `suppressed_${Date.now()}@example.com`;
@@ -100,6 +103,7 @@ async function runOutboxTest() {
     await authDal.createUser(userId, dummyUser, 'hash1234567890');
 
     await authDal.enqueueOutboxEmail(suppOutboxId, 'verification', suppressedEmail, { userId });
+    await new Promise((r) => setTimeout(r, 500));
     await processOutboxBatch();
 
     const pool = getDbPool();
@@ -134,6 +138,7 @@ async function runOutboxTest() {
     }
 
     // Process outbox batch to deliver via SMTP
+    await new Promise((r) => setTimeout(r, 500));
     await processOutboxBatch();
 
     const rawToken = emailSink.extractTokenForRecipient(signupEmail);
@@ -167,6 +172,7 @@ async function runOutboxTest() {
     // Stop API server and SMTP sink
     await apiRunner.stopServer();
     await emailSink.stop();
+    try { const pool = getDbPool(); await pool.end(); } catch {}
 
     console.log('\n================================================================');
     console.log('✅ PASS: Email Outbox Secrets & Payload Blanking (Item 4)');
@@ -175,6 +181,7 @@ async function runOutboxTest() {
   } catch (error: any) {
     await apiRunner.stopServer();
     await emailSink.stop();
+    try { const pool = getDbPool(); await pool.end(); } catch {}
     console.error('\n❌ FAIL: Outbox Secrets Test Suite Failed:', error.message);
     process.exit(1);
   }

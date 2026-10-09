@@ -7,7 +7,7 @@ import { MockEmbeddingProvider } from './providers/mockEmbeddingProvider';
 import { IEmbeddingProvider, MatchSearchParams, MatchSearchResult, ScoredJobMatch } from './types';
 import { computeCosineSimilarity, convertCosineToScore, getMatchLabel } from './cosineSimilarity';
 import { screenJobDescription } from './redFlagFilter';
-import { defaultFitExplanationService, FitExplanationService } from './fitExplanationService';
+import { defaultFitExplanationService, FitExplanationService, sanitizeFitExplanation } from './fitExplanationService';
 import { MATCHING_CONFIG } from './matchingConfig';
 
 export class MatchingService {

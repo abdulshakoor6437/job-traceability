@@ -3,6 +3,7 @@ import { authDal } from '../src/dal/authDal';
 import { config } from '../src/config/env';
 import { getDbPool } from '../src/dal/db';
 import crypto from 'crypto';
+import { apiRunner } from './test-helpers/apiRunner';
 
 const API_HOST = '127.0.0.1';
 const API_PORT = config.port;
@@ -59,7 +60,10 @@ async function runHeartbeatTest() {
   console.log('🧪 RUNNING SESSION HEARTBEAT & IDLE EXPIRATION SUITE');
   console.log('================================================================\n');
 
-  const pool = getDbPool();
+  await apiRunner.startServer(API_PORT, { EMAIL_MODE: 'console' });
+
+  try {
+    const pool = getDbPool();
   const timestamp = Date.now();
   const userId = crypto.randomUUID();
   const email = `heartbeat_${timestamp}@example.com`;
@@ -145,10 +149,13 @@ async function runHeartbeatTest() {
   }
   console.log('   ✅ Late heartbeat rejection VERIFIED.');
 
-  console.log('\n================================================================');
-  console.log('🎉 SESSION HEARTBEAT & IDLE EXPIRATION TESTS PASSED PERFECTLY!');
-  console.log('================================================================\n');
-
+    console.log('\n================================================================');
+    console.log('🎉 SESSION HEARTBEAT & IDLE EXPIRATION TESTS PASSED PERFECTLY!');
+    console.log('================================================================\n');
+  } finally {
+    await apiRunner.stopServer(API_PORT);
+    try { const pool = getDbPool(); await pool.end(); } catch {}
+  }
   process.exit(0);
 }
 

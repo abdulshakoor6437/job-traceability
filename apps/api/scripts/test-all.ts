@@ -24,6 +24,7 @@ const testScripts = [
   { name: 'Module 2: Job Sourcing Acceptance Suite (Live)', command: 'tsx scripts/test-real-acceptance.ts' },
   { name: 'Module 3: Matching & Ranking Acceptance Suite (Tests a-g)', command: 'tsx scripts/test-module3-acceptance.ts' },
   { name: 'Module 4: CV Tailoring Acceptance Suite (Tests a-g)', command: 'tsx scripts/test-module4-acceptance.ts' },
+  { name: 'Module 5: Dashboard UI Acceptance Suite (Tests a-f)', command: 'tsx scripts/test-module5-acceptance.ts' },
 ];
 
 async function runAllTests() {
@@ -40,27 +41,20 @@ async function runAllTests() {
     process.exit(1);
   }
 
-  console.log('🔧 Starting background API server for test suite...');
-  await apiRunner.startServer(4000, { EMAIL_MODE: 'console' });
-
   let passedCount = 0;
   let failedCount = 0;
 
-  try {
-    for (const { name, command } of testScripts) {
-      console.log(`▶ Executing Module: ${name} (${command})...`);
-      try {
-        execSync(`npx ${command}`, { stdio: 'inherit', cwd: __dirname + '/..' });
-        console.log(`✅ MODULE PASSED: ${name}\n`);
-        passedCount++;
-      } catch (error) {
-        console.error(`❌ MODULE FAILED: ${name}\n`);
-        failedCount++;
-        process.exit(1);
-      }
+  for (const { name, command } of testScripts) {
+    console.log(`▶ Executing Module: ${name} (${command})...`);
+    try {
+      execSync(`npx ${command}`, { stdio: 'inherit', cwd: __dirname + '/..' });
+      console.log(`✅ MODULE PASSED: ${name}\n`);
+      passedCount++;
+    } catch (error) {
+      console.error(`❌ MODULE FAILED: ${name}\n`);
+      failedCount++;
+      process.exit(1);
     }
-  } finally {
-    await apiRunner.stopServer();
   }
 
   console.log('================================================================');

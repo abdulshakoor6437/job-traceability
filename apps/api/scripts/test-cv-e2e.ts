@@ -24,6 +24,7 @@ import crypto from 'crypto';
 import { apiRunner } from './test-helpers/apiRunner';
 import { getDbPool } from '../src/dal/db';
 import {
+  GroqLLMProvider,
   GrokLLMProvider,
   GeminiLLMProvider,
   OpenRouterLLMProvider,
@@ -364,7 +365,9 @@ async function runAllTests() {
   const configuredProviders = (process.env.LLM_PROVIDERS || 'grok').split(',').map((s) => s.trim());
   const firstProvider = configuredProviders[0];
   let workingProvider: ILLMProvider;
-  if (firstProvider === 'grok' && process.env.GROK_API_KEY) {
+  if (firstProvider === 'groq' && process.env.GROQ_API_KEY) {
+    workingProvider = new GroqLLMProvider();
+  } else if (firstProvider === 'grok' && process.env.GROK_API_KEY) {
     workingProvider = new GrokLLMProvider();
   } else if (firstProvider === 'gemini' && process.env.GEMINI_API_KEY) {
     workingProvider = new GeminiLLMProvider();

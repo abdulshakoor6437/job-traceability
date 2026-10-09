@@ -6,7 +6,7 @@ export class ApiRunnerHelper {
   private child: ChildProcess | null = null;
 
   async startServer(port: number, envVars: Record<string, string | undefined> = {}): Promise<void> {
-    await this.stopServer();
+    await this.stopServer(port);
 
     try {
       const { getDbPool } = require('../../src/dal/db');
@@ -65,7 +65,7 @@ export class ApiRunnerHelper {
     });
   }
 
-  stopServer(): Promise<void> {
+  stopServer(port?: number): Promise<void> {
     return new Promise((resolve) => {
       if (this.child && this.child.pid) {
         try {
@@ -79,10 +79,14 @@ export class ApiRunnerHelper {
           // Already exited
         }
         this.child = null;
-        setTimeout(resolve, 500);
-      } else {
-        resolve();
       }
+      if (port && process.platform === 'win32') {
+        try {
+          const { execSync } = require('child_process');
+          execSync(`powershell -Command "Stop-Process -Id (Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue).OwningProcess -Force -ErrorAction SilentlyContinue"`, { stdio: 'ignore' });
+        } catch {}
+      }
+      setTimeout(resolve, 800);
     });
   }
 }

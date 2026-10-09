@@ -5,6 +5,7 @@ import { authDal } from '../src/dal/authDal';
 import { processOutboxBatch } from '../src/services/emailOutboxWorker';
 import { getDbPool } from '../src/dal/db';
 import crypto from 'crypto';
+import { apiRunner } from './test-helpers/apiRunner';
 
 const API_HOST = '127.0.0.1';
 const API_PORT = config.port;
@@ -130,22 +131,33 @@ async function runEmailDeliveryTest() {
   console.log('📧 RUNNING REAL SMTP EMAIL DELIVERY & RECOVERY TEST');
   console.log('================================================================\n');
 
-  const pool = getDbPool();
-  try {
-    await pool.execute('DELETE FROM rate_limits');
-  } catch {}
+  const SMTP_PORT = 1025;
+  const API_PORT = config.port;
 
-  const smtpServer = new SimpleTestSmtpServer();
-  const timestamp = Date.now();
+  await apiRunner.startServer(API_PORT, {
+    EMAIL_MODE: 'smtp',
+    SMTP_HOST: '127.0.0.1',
+    SMTP_PORT: SMTP_PORT.toString(),
+    SMTP_SECURE: 'false',
+  });
 
-  // Configure env for SMTP mode to test server
   (config.email as any).mode = 'smtp';
   (config.email as any).smtpHost = '127.0.0.1';
   (config.email as any).smtpPort = SMTP_PORT;
   (config.email as any).smtpSecure = false;
 
-  console.log('1️⃣ Starting Local SMTP Test Server (Port 1025)...');
-  await smtpServer.start();
+  const pool = getDbPool();
+  const smtpServer = new SimpleTestSmtpServer();
+
+  try {
+    try {
+      await pool.execute('DELETE FROM rate_limits');
+    } catch {}
+
+    const timestamp = Date.now();
+
+    console.log('1️⃣ Starting Local SMTP Test Server (Port 1025)...');
+    await smtpServer.start();
 
   console.log('\n(a) Testing Signup -> Outbox -> SMTP Delivery -> Token Extraction -> Email Verification:');
   const emailA = `smtp_user_a_${timestamp}@example.com`;
@@ -218,10 +230,14 @@ async function runEmailDeliveryTest() {
   }
   console.log('   ✅ Step (c) PASSED: Email delivered successfully after SMTP recovery.');
 
-  console.log('\n================================================================');
-  console.log('🎉 REAL SMTP EMAIL DELIVERY & RECOVERY TEST PASSED 100%');
-  console.log('================================================================\n');
-
+    console.log('\n================================================================');
+    console.log('🎉 REAL SMTP EMAIL DELIVERY & RECOVERY TEST PASSED 100%');
+    console.log('================================================================\n');
+  } finally {
+    try { await smtpServer.stop(); } catch {}
+    await apiRunner.stopServer(API_PORT);
+    try { const pool = getDbPool(); await pool.end(); } catch {}
+  }
   process.exit(0);
 }
 

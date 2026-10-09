@@ -3,6 +3,7 @@ import { authDal } from '../src/dal/authDal';
 import { config } from '../src/config/env';
 import { getDbPool } from '../src/dal/db';
 import crypto from 'crypto';
+import { apiRunner } from './test-helpers/apiRunner';
 
 const API_HOST = '127.0.0.1';
 const API_PORT = config.port;
@@ -59,46 +60,52 @@ async function runConcurrencyTest() {
   console.log('🧪 RUNNING ATOMIC TOKEN CONSUMPTION CONCURRENCY TEST');
   console.log('================================================================\n');
 
-  const pool = getDbPool();
+  await apiRunner.startServer(API_PORT, { EMAIL_MODE: 'console' });
+
   try {
-    await pool.execute('DELETE FROM rate_limits');
-  } catch {}
-  const timestamp = Date.now();
-  const userId = crypto.randomUUID();
-  const email = `concurrency_${timestamp}@example.com`;
+    const pool = getDbPool();
+    try {
+      await pool.execute('DELETE FROM rate_limits');
+    } catch {}
+    const timestamp = Date.now();
+    const userId = crypto.randomUUID();
+    const email = `concurrency_${timestamp}@example.com`;
 
-  await authDal.createUser(userId, email, '$2a$10$dummyhashedpasswordstring');
+    await authDal.createUser(userId, email, '$2a$10$dummyhashedpasswordstring');
 
-  const rawToken = crypto.randomBytes(32).toString('hex');
-  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-  const tokenId = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + 60000);
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const tokenId = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 60000);
 
-  await authDal.createEmailVerificationToken(tokenId, userId, tokenHash, expiresAt);
-  console.log('   Verification token created in database.');
+    await authDal.createEmailVerificationToken(tokenId, userId, tokenHash, expiresAt);
+    console.log('   Verification token created in database.');
 
-  console.log('   ⚡ Firing 2 SIMULTANEOUS concurrent HTTP requests to consume the exact same token...');
+    console.log('   ⚡ Firing 2 SIMULTANEOUS concurrent HTTP requests to consume the exact same token...');
 
-  const [req1, req2] = await Promise.all([
-    makeRequest('POST', '/api/auth/verify-email', { token: rawToken }),
-    makeRequest('POST', '/api/auth/verify-email', { token: rawToken }),
-  ]);
+    const [req1, req2] = await Promise.all([
+      makeRequest('POST', '/api/auth/verify-email', { token: rawToken }),
+      makeRequest('POST', '/api/auth/verify-email', { token: rawToken }),
+    ]);
 
-  console.log(`   Request 1 Status: ${req1.status}`);
-  console.log(`   Request 2 Status: ${req2.status}`);
+    console.log(`   Request 1 Status: ${req1.status}`);
+    console.log(`   Request 2 Status: ${req2.status}`);
 
-  const statuses = [req1.status, req2.status].sort();
+    const statuses = [req1.status, req2.status].sort();
 
-  if (statuses[0] !== 200 || statuses[1] !== 400) {
-    throw new Error(`CONCURRENCY FAILURE: Expected one 200 and one 400, got ${req1.status} and ${req2.status}!`);
+    if (statuses[0] !== 200 || statuses[1] !== 400) {
+      throw new Error(`CONCURRENCY FAILURE: Expected one 200 and one 400, got ${req1.status} and ${req2.status}!`);
+    }
+
+    console.log('   ✅ Atomic Token Consumption CONCURRENCY VERIFIED: Exactly one request succeeded.');
+
+    console.log('\n================================================================');
+    console.log('🎉 CONCURRENCY TEST PASSED PERFECTLY!');
+    console.log('================================================================\n');
+  } finally {
+    await apiRunner.stopServer(API_PORT);
+    try { const pool = getDbPool(); await pool.end(); } catch {}
   }
-
-  console.log('   ✅ Atomic Token Consumption CONCURRENCY VERIFIED: Exactly one request succeeded.');
-
-  console.log('\n================================================================');
-  console.log('🎉 CONCURRENCY TEST PASSED PERFECTLY!');
-  console.log('================================================================\n');
-
   process.exit(0);
 }
 

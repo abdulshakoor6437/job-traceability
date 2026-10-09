@@ -93,3 +93,7 @@ For production email deliverability and domain reputation protection:
   1. Upgrading JSearch and SerpApi subscription tiers.
   2. Extending shared cache TTL (e.g. from 8 hours to 24–48 hours).
   3. Rebalancing provider fallback strategy to rely more heavily on Remotive or SerpApi when JSearch nears its quota limit.
+
+### Known Minor Issues (Non-blocking)
+- **Module 5 Cosmetic Wording Bug**: Explanation wording for lower-scoring jobs occasionally includes `"based on verified expertise in ."` (dangling period when key skill parameter is empty). This issue does not affect scoring, matching, or exclusion correctness, and is logged to revisit later.
+

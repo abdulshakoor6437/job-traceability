@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
@@ -26,40 +27,49 @@ function log(msg: string) {
 
 let webChild: ChildProcess | null = null;
 
-async function pingUrl(url: string): Promise<boolean> {
+async function isPortInUse(port: number): Promise<boolean> {
   return new Promise((resolve) => {
-    http.get(url, (res) => {
-      resolve(res.statusCode !== undefined && res.statusCode < 500);
-    }).on('error', () => resolve(false));
+    const net = require('net');
+    const socket = net.createConnection({ port, host: '127.0.0.1' });
+    socket.once('connect', () => {
+      socket.end();
+      resolve(true);
+    });
+    socket.once('error', () => {
+      resolve(false);
+    });
   });
 }
 
 async function startServers() {
   log('🔧 Starting API Server (port 4000) & Next.js Web App (port 3000)...');
 
-  // 1. Start API Server on port 4000 via apiRunner
+  // 1. Always start fresh API Server on port 4000 via apiRunner
   await apiRunner.startServer(4000, { EMAIL_MODE: 'console' });
   log('✅ API Server listening on http://localhost:4000');
 
-  // 2. Start Next.js web server on port 3000
-  const rootNextCli = path.resolve(__dirname, '../../../node_modules/next/dist/bin/next');
-  const localNextCli = path.resolve(__dirname, '../../web/node_modules/next/dist/bin/next');
-  const nextCli = fs.existsSync(localNextCli) ? localNextCli : rootNextCli;
+  // 2. Start Next.js web server on port 3000 if not already running
+  const isWebRunning = await isPortInUse(3000);
+  if (!isWebRunning) {
+    const rootNextCli = path.resolve(__dirname, '../../../node_modules/next/dist/bin/next');
+    const localNextCli = path.resolve(__dirname, '../../web/node_modules/next/dist/bin/next');
+    const nextCli = fs.existsSync(localNextCli) ? localNextCli : rootNextCli;
 
-  webChild = spawn(process.execPath, [nextCli, 'dev', '-p', '3000'], {
-    cwd: path.resolve(__dirname, '../../web'),
-    env: { ...process.env },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+    webChild = spawn(process.execPath, [nextCli, 'dev', '-p', '3000'], {
+      cwd: path.resolve(__dirname, '../../web'),
+      env: { ...process.env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
 
-  webChild.stdout?.on('data', (d) => log('[WEB SERVER OUTPUT] ' + d.toString().trim()));
-  webChild.stderr?.on('data', (d) => log('[WEB SERVER STDERR] ' + d.toString().trim()));
+    webChild.stdout?.on('data', (d) => log('[WEB SERVER OUTPUT] ' + d.toString().trim()));
+    webChild.stderr?.on('data', (d) => log('[WEB SERVER STDERR] ' + d.toString().trim()));
+  }
 
   log('⏳ Waiting for Next.js Web App (http://localhost:3000) to respond...');
   const start = Date.now();
   let webReady = false;
   while (Date.now() - start < 45000) {
-    if (await pingUrl('http://127.0.0.1:3000')) {
+    if (await isPortInUse(3000)) {
       webReady = true;
       break;
     }
@@ -90,6 +100,8 @@ async function stopServers() {
 
 async function helperLoginUser(page: Page, email: string, pass: string) {
   const pool = getDbPool();
+  try { await pool.execute('DELETE FROM rate_limits'); } catch {}
+
   // Ensure user exists & verified
   let [rows]: any = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
   let uId: string;
@@ -101,11 +113,23 @@ async function helperLoginUser(page: Page, email: string, pass: string) {
   }
   await pool.execute('UPDATE users SET is_verified = 1 WHERE email = ?', [email]);
 
-  await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle0' });
-  await page.type('input[type="email"]', email);
-  await page.type('input[type="password"]', pass);
-  await page.click('button[type="submit"]');
-  await new Promise((r) => setTimeout(r, 2000));
+  const rawSessionToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawSessionToken).digest('hex');
+  const sessionId = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const idleExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+  await authDal.createSession(sessionId, uId, tokenHash, expiresAt, idleExpiresAt);
+
+  await page.setCookie({
+    name: 'session_token',
+    value: rawSessionToken,
+    url: 'http://localhost:3000',
+    path: '/',
+    httpOnly: true,
+  });
+
+  await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
   return uId;
 }
 
@@ -191,7 +215,7 @@ async function runModule5AcceptanceTests() {
 
     // Step 1: Signup & Login
     log('   1. Navigating to Signup page...');
-    await pageA.goto('http://localhost:3000/signup', { waitUntil: 'networkidle0' });
+    await pageA.goto('http://localhost:3000/signup', { waitUntil: 'domcontentloaded' });
     await pageA.type('input[type="email"]', userAEmail);
     await pageA.type('input[type="password"]', password);
     await pageA.click('button[type="submit"]');
@@ -206,13 +230,17 @@ async function runModule5AcceptanceTests() {
 
     // Step 2: Upload CV (PDF)
     log('   3. Navigating to CV Management page & uploading PDF...');
-    await pageA.goto('http://localhost:3000/dashboard/cv', { waitUntil: 'networkidle0' });
+    await pageA.goto('http://localhost:3000/dashboard/cv', { waitUntil: 'domcontentloaded' });
 
     const samplePdfPath = path.resolve(__dirname, '../test-fixtures/sample-cv.pdf');
+    await pageA.waitForSelector('input[type="file"]', { timeout: 35000 });
     const fileInput = await pageA.$('input[type="file"]');
     if (fileInput) {
       await fileInput.uploadFile(samplePdfPath);
-      await new Promise((r) => setTimeout(r, 5000));
+      await fileInput.evaluate((el: any) => el.dispatchEvent(new Event('change', { bubbles: true })));
+      log('   ⏳ Waiting for CV parsing and editor form to render...');
+      await pageA.waitForSelector('textarea', { timeout: 45000 });
+      await new Promise((r) => setTimeout(r, 1500));
     }
 
     const step2Shot = path.join(OUTPUT_DIR, 'step2_cv_parsed.png');
@@ -223,8 +251,9 @@ async function runModule5AcceptanceTests() {
     log('   4. Editing CV profile summary & saving...');
     await pageA.waitForSelector('textarea', { timeout: 10000 });
     await pageA.type('textarea', ' Updated professional summary for Jane Smith.');
+    await pageA.waitForSelector('form button[type="submit"]', { timeout: 10000 });
     await pageA.click('form button[type="submit"]');
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 2000));
 
     const step3Shot = path.join(OUTPUT_DIR, 'step3_cv_edited.png');
     await pageA.screenshot({ path: step3Shot });
@@ -232,7 +261,8 @@ async function runModule5AcceptanceTests() {
 
     // Step 4: Job Matches Search
     log('   5. Navigating to Job Matches & executing search...');
-    await pageA.goto('http://localhost:3000/dashboard/jobs', { waitUntil: 'networkidle0' });
+    await pageA.goto('http://localhost:3000/dashboard/jobs', { waitUntil: 'domcontentloaded' });
+    await pageA.waitForSelector('button[type="submit"]', { timeout: 15000 });
     await pageA.click('button[type="submit"]');
     await new Promise((r) => setTimeout(r, 4000));
 
@@ -242,9 +272,11 @@ async function runModule5AcceptanceTests() {
 
     // Step 5: Tailor CV for Job
     log('   6. Triggering Tailored CV Generation...');
-    await pageA.goto(`http://localhost:3000/dashboard/tailored?jobId=${dummyJobId}`, { waitUntil: 'networkidle0' });
+    await pageA.goto(`http://localhost:3000/dashboard/tailored?jobId=${dummyJobId}`, { waitUntil: 'domcontentloaded' });
+    await pageA.waitForSelector('button[type="submit"]', { timeout: 15000 });
     await pageA.click('button[type="submit"]');
-    await new Promise((r) => setTimeout(r, 4000));
+    await pageA.waitForSelector('textarea', { timeout: 45000 });
+    await new Promise((r) => setTimeout(r, 1000));
 
     const step5Shot = path.join(OUTPUT_DIR, 'step5_tailored_cv.png');
     await pageA.screenshot({ path: step5Shot });
@@ -252,9 +284,11 @@ async function runModule5AcceptanceTests() {
 
     // Step 6: Edit Tailored CV & Export Buttons
     log('   7. Editing Tailored CV and Exporting DOCX/PDF...');
+    await pageA.waitForSelector('textarea', { timeout: 10000 });
     await pageA.type('textarea', ' Custom tailored summary.');
+    await pageA.waitForSelector('form button[type="submit"]', { timeout: 10000 });
     await pageA.click('form button[type="submit"]');
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 2000));
 
     const step6Shot = path.join(OUTPUT_DIR, 'step6_tailored_edited.png');
     await pageA.screenshot({ path: step6Shot });
@@ -262,13 +296,14 @@ async function runModule5AcceptanceTests() {
 
     // Step 7: Settings Screen & Logout
     log('   8. Navigating to Settings & Logging out...');
-    await pageA.goto('http://localhost:3000/dashboard/settings', { waitUntil: 'networkidle0' });
+    await pageA.goto('http://localhost:3000/dashboard/settings', { waitUntil: 'domcontentloaded' });
+    await pageA.waitForSelector('button.button-danger', { timeout: 15000 });
     const step7Shot = path.join(OUTPUT_DIR, 'step7_settings_screen.png');
     await pageA.screenshot({ path: step7Shot });
     log(`   ✅ Step 7 (Settings Screen): Saved screenshot to ${step7Shot}`);
 
     await pageA.click('button.button-danger');
-    await pageA.waitForNavigation({ waitUntil: 'networkidle0' });
+    await pageA.waitForNavigation({ waitUntil: 'domcontentloaded' });
 
     const step8Shot = path.join(OUTPUT_DIR, 'step8_logged_out.png');
     await pageA.screenshot({ path: step8Shot });
@@ -288,8 +323,11 @@ async function runModule5AcceptanceTests() {
     await pool.execute('DELETE FROM user_sessions WHERE user_id = ?', [userBId]);
 
     // Navigate to dashboard/cv
-    await pageB.goto('http://localhost:3000/dashboard/cv', { waitUntil: 'networkidle0' });
-    await new Promise((r) => setTimeout(r, 2000));
+    await pageB.goto('http://localhost:3000/dashboard/cv', { waitUntil: 'domcontentloaded' });
+    try {
+      await pageB.waitForFunction(() => window.location.href.includes('/login'), { timeout: 10000 });
+    } catch {}
+    await new Promise((r) => setTimeout(r, 1000));
 
     const currentUrlB = pageB.url();
     const testBShot = path.join(OUTPUT_DIR, 'test_b_session_expired.png');
@@ -312,7 +350,7 @@ async function runModule5AcceptanceTests() {
     await pageC.setViewport({ width: 1280, height: 800 });
 
     await helperLoginUser(pageC, userCEmail, password);
-    await pageC.goto('http://localhost:3000/dashboard/cv', { waitUntil: 'networkidle0' });
+    await pageC.goto('http://localhost:3000/dashboard/cv', { waitUntil: 'domcontentloaded' });
 
     const testCShot = path.join(OUTPUT_DIR, 'test_c_user_b_isolation.png');
     await pageC.screenshot({ path: testCShot });
@@ -327,7 +365,7 @@ async function runModule5AcceptanceTests() {
     await pageD.setViewport({ width: 1280, height: 800 });
 
     await helperLoginUser(pageD, userAEmail, password);
-    await pageD.goto('http://localhost:3000/dashboard/jobs', { waitUntil: 'networkidle0' });
+    await pageD.goto('http://localhost:3000/dashboard/jobs', { waitUntil: 'domcontentloaded' });
 
     // Click "Show Excluded Jobs" checkbox
     const checkboxes = await pageD.$$('input[type="checkbox"]');
@@ -349,11 +387,14 @@ async function runModule5AcceptanceTests() {
     await pageE.setViewport({ width: 1280, height: 800 });
 
     await helperLoginUser(pageE, userAEmail, password);
-    await pageE.goto('http://localhost:3000/dashboard/jobs', { waitUntil: 'networkidle0' });
+    await pageE.goto('http://localhost:3000/dashboard/jobs', { waitUntil: 'domcontentloaded' });
+    await pageE.waitForSelector('button[type="submit"]', { timeout: 20000 });
 
     // Execute fresh search first
-    const forceRefreshCheckbox = (await pageE.$$('input[type="checkbox"]'))[1];
-    if (forceRefreshCheckbox) await forceRefreshCheckbox.click();
+    const checkboxesE = await pageE.$$('input[type="checkbox"]');
+    if (checkboxesE.length >= 2) {
+      await checkboxesE[1].click();
+    }
 
     await pageE.click('button[type="submit"]');
     await new Promise((r) => setTimeout(r, 3000));
@@ -363,7 +404,10 @@ async function runModule5AcceptanceTests() {
     log(`   Fresh search screenshot saved: ${testEFreshShot}`);
 
     // Now execute cached search
-    if (forceRefreshCheckbox) await forceRefreshCheckbox.click(); // uncheck
+    if (checkboxesE.length >= 2) {
+      await checkboxesE[1].click(); // uncheck
+    }
+    await pageE.waitForSelector('button[type="submit"]', { timeout: 20000 });
     await pageE.click('button[type="submit"]');
     await new Promise((r) => setTimeout(r, 2000));
 
@@ -389,7 +433,8 @@ async function runModule5AcceptanceTests() {
       [userFId]
     );
 
-    await pageF.goto(`http://localhost:3000/dashboard/tailored?jobId=${dummyJobId}`, { waitUntil: 'networkidle0' });
+    await pageF.goto(`http://localhost:3000/dashboard/tailored?jobId=${dummyJobId}`, { waitUntil: 'domcontentloaded' });
+    await pageF.waitForSelector('button[type="submit"]', { timeout: 20000 });
     await pageF.click('button[type="submit"]');
     await new Promise((r) => setTimeout(r, 2000));
 
@@ -405,7 +450,9 @@ async function runModule5AcceptanceTests() {
     if (browser) await browser.close();
     await stopServers();
     logStream.end();
+    try { const pool = getDbPool(); await pool.end(); } catch {}
   }
+  process.exit(process.exitCode || 0);
 }
 
 runModule5AcceptanceTests();

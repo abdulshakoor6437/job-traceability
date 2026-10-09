@@ -72,7 +72,7 @@ async function captureFreshEvidence() {
       education: [],
       projects: [],
       certifications: []
-    } as any);
+    } as any, false);
   } else {
     // Update contact fields on active profile
     await pool.execute(
@@ -180,7 +180,7 @@ async function captureFreshEvidence() {
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-    viewport: { width: 1280, height: 960 }
+    defaultViewport: { width: 1280, height: 960 }
   });
 
   const page = await browser.newPage();

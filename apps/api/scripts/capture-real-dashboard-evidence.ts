@@ -49,10 +49,10 @@ async function captureRealDashboardEvidence() {
       website: 'https://alexdev.io',
       summary: 'Senior Fullstack Software Engineer with 5 years experience building web apps with TypeScript, React, Node.js, Next.js, and MySQL.',
       skills: [
-        { name: 'TypeScript', category: 'Language' },
-        { name: 'React', category: 'Frontend' },
-        { name: 'Node.js', category: 'Backend' },
-        { name: 'MySQL', category: 'Database' }
+        { skill_name: 'TypeScript', category: 'Language' },
+        { skill_name: 'React', category: 'Frontend' },
+        { skill_name: 'Node.js', category: 'Backend' },
+        { skill_name: 'MySQL', category: 'Database' }
       ],
       work_experience: [
         {
@@ -69,7 +69,7 @@ async function captureRealDashboardEvidence() {
       education: [],
       projects: [],
       certifications: []
-    });
+    } as any, false);
   }
 
   // Ensure test jobs exist in cached_jobs
@@ -151,7 +151,7 @@ async function captureRealDashboardEvidence() {
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-    viewport: { width: 1280, height: 960 }
+    defaultViewport: { width: 1280, height: 960 }
   });
 
   const page = await browser.newPage();
