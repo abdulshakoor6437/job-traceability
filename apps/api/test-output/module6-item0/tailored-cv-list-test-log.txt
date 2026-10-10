@@ -1,0 +1,98 @@
+================================================================
+🚀 MODULE 6 ADDITION: GET /api/tailored-cv/list ACCEPTANCE TEST
+================================================================
+
+✅ Test server running on http://127.0.0.1:4099
+
+1. Creating User A and User B...
+   User A ID: 4098a0de-5442-4fdc-9d79-88d841a4ba28
+   User B ID: 8e8c2e3c-8fe6-4be6-a72f-269f614fcce8
+
+2. Seeding test jobs in cached_jobs...
+   ✅ Seeded 3 jobs (Acme Corp, Beta Tech, Gamma Systems)
+
+3. Generating tailored CVs for User A...
+   Created User A - Job 1 - Version 1 (ID: d01437d8-8b52-4776-a7e1-d2b39699915b)
+   Created User A - Job 1 - Version 2 (ID: 4ad1190d-4faf-4c1a-9e94-2f88815c1072, is_current=1)
+   Created User A - Job 2 - Version 1 (ID: 43c0d171-3c59-4398-8fce-6cc5d0a7d5a0, is_current=1)
+
+4. Generating tailored CV for User B...
+   Created User B - Job 3 - Version 1 (ID: 7ac75a30-d5ce-4a1a-99cb-ae82c051152e, is_current=1)
+
+5. Requesting GET /api/tailored-cv/list for User A...
+   HTTP Response Status: 200
+   Response Body: {
+  "tailoredCvs": [
+    {
+      "id": "43c0d171-3c59-4398-8fce-6cc5d0a7d5a0",
+      "jobId": "job-list-002",
+      "job_id": "job-list-002",
+      "jobTitle": "Fullstack Developer",
+      "job_title": "Fullstack Developer",
+      "company": "Beta Tech",
+      "versionNumber": 1,
+      "version_number": 1,
+      "createdAt": "2026-10-09T23:29:40.000Z",
+      "created_at": "2026-10-09T23:29:40.000Z"
+    },
+    {
+      "id": "4ad1190d-4faf-4c1a-9e94-2f88815c1072",
+      "jobId": "job-list-001",
+      "job_id": "job-list-001",
+      "jobTitle": "Senior Backend Engineer",
+      "job_title": "Senior Backend Engineer",
+      "company": "Acme Corp",
+      "versionNumber": 2,
+      "version_number": 2,
+      "createdAt": "2026-10-09T23:29:40.000Z",
+      "created_at": "2026-10-09T23:29:40.000Z"
+    }
+  ],
+  "list": [
+    {
+      "id": "43c0d171-3c59-4398-8fce-6cc5d0a7d5a0",
+      "jobId": "job-list-002",
+      "job_id": "job-list-002",
+      "jobTitle": "Fullstack Developer",
+      "job_title": "Fullstack Developer",
+      "company": "Beta Tech",
+      "versionNumber": 1,
+      "version_number": 1,
+      "createdAt": "2026-10-09T23:29:40.000Z",
+      "created_at": "2026-10-09T23:29:40.000Z"
+    },
+    {
+      "id": "4ad1190d-4faf-4c1a-9e94-2f88815c1072",
+      "jobId": "job-list-001",
+      "job_id": "job-list-001",
+      "jobTitle": "Senior Backend Engineer",
+      "job_title": "Senior Backend Engineer",
+      "company": "Acme Corp",
+      "versionNumber": 2,
+      "version_number": 2,
+      "createdAt": "2026-10-09T23:29:40.000Z",
+      "created_at": "2026-10-09T23:29:40.000Z"
+    }
+  ]
+}
+
+   User A List Items Count: 2
+   ✅ Requirement 1 PASSED: Historical versions excluded, only current version (is_current=1) returned per job.
+
+   Verifying row data formatting (Requirement 2):
+   Job 1 Row: Senior Backend Engineer @ Acme Corp — v2 (ID: 4ad1190d-4faf-4c1a-9e94-2f88815c1072, JobID: job-list-001, CreatedAt: 2026-10-09T23:29:40.000Z)
+   Job 2 Row: Fullstack Developer @ Beta Tech — v1 (ID: 43c0d171-3c59-4398-8fce-6cc5d0a7d5a0, JobID: job-list-002, CreatedAt: 2026-10-09T23:29:40.000Z)
+   ✅ Requirement 2 PASSED: Rows include tailored CV ID, job ID, job title, company, version number, created_at for popup dropdown.
+
+6. Testing Cross-User Isolation (Requirement 3)...
+   Requesting GET /api/tailored-cv/list for User B...
+   User B List Items Count: 1
+   ✅ Requirement 3 PASSED: Cross-user DAL isolation verified. User A list contains 0 rows for User B; User B list contains 0 rows for User A.
+
+7. Testing unauthenticated request (security check)...
+   Unauthenticated status: 401
+   ✅ Unauthenticated request correctly rejected with 401 Unauthorized.
+
+================================================================
+🎉 ALL GET /api/tailored-cv/list ACCEPTANCE TESTS PASSED!
+================================================================

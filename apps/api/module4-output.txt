@@ -3,8 +3,8 @@
 ========================================================================
 
 --- Setup: cleaning test data ---
-User A CV profile id: 6d16f6e9-8da6-4b9d-ab12-43dc24519d4a
-User B CV profile id: 2094d146-fc82-410d-b18f-21eca08f0a83
+User A CV profile id: 5a7bbf59-c7e4-4b71-a9b8-4012388c871a
+User B CV profile id: 97e9e5bc-e8ec-4f65-b5a4-901ada144332
 --- Setup complete ---
 
 ------------------------------------------------------------------------
@@ -84,11 +84,11 @@ TEST (b): Fabricated entity caught — two DISTINCT LLM calls evidenced
 ------------------------------------------------------------------------
 TEST (c): Two versions for same job — history stored, one is current
 ------------------------------------------------------------------------
-  Version 1 id: d920b690-8d23-4ace-b89b-08993d381e77  version_number: 1  is_current: 1
-  Version 2 id: 865e393e-fff5-484a-87ad-3413759d40e9  version_number: 2  is_current: 1
+  Version 1 id: b5c9f6d7-21a1-4436-8e4c-92f947696f1d  version_number: 1  is_current: 1
+  Version 2 id: 3384c715-d55e-4ef2-9e05-659ccdb19d9c  version_number: 2  is_current: 1
   Total versions stored: 2
   Versions marked is_current=1: 1 (expected: 1)
-  Current version id: 865e393e-fff5-484a-87ad-3413759d40e9  (expected: 865e393e-fff5-484a-87ad-3413759d40e9)
+  Current version id: 3384c715-d55e-4ef2-9e05-659ccdb19d9c  (expected: 3384c715-d55e-4ef2-9e05-659ccdb19d9c)
   v1 is_current after v2 created: 0 (expected: 0)
 ✅ TEST (c) PASSED: Both versions stored. v2 is_current=1, v1 is_current=0.
 
@@ -107,18 +107,18 @@ TEST (e): PDF/DOCX export only on explicit user action — never automatic
   Export functions called inside /generate route block: false (expected: false)
   tailorCv() returns Buffer/Uint8Array (would indicate auto-export): false (expected: false)
   Explicit exportToDocx() buffer size: 9174 bytes
-  Explicit exportToPdf() bytes size:   2030 bytes
+  Explicit exportToPdf() bytes size:   2028 bytes
 ✅ TEST (e) PASSED: Export absent from generate path. Explicit calls produce valid DOCX and PDF.
 
 ------------------------------------------------------------------------
 TEST (f): Cross-user DAL isolation — User A cannot access User B data
 ------------------------------------------------------------------------
-  User B tailored CV id: 55228577-7eac-4227-bcdf-a34b539a0858
+  User B tailored CV id: ae6dd0b4-019d-4924-ac66-a5986ea0a65a
   User A getById(User B's CV id): null (expected: null)
   User A listByJob contains User B rows: false (expected: false)
   User A listByJob row count: 2
-    row: id=865e393e-fff5-484a-87ad-3413759d40e9  user_id=mod4-acc-user-a
-    row: id=d920b690-8d23-4ace-b89b-08993d381e77  user_id=mod4-acc-user-a
+    row: id=3384c715-d55e-4ef2-9e05-659ccdb19d9c  user_id=mod4-acc-user-a
+    row: id=b5c9f6d7-21a1-4436-8e4c-92f947696f1d  user_id=mod4-acc-user-a
   getCurrentByJob for USER_A returns user_id=mod4-acc-user-a (expected: mod4-acc-user-a)
 ✅ TEST (f) PASSED: User A cannot view, generate for, or access User B tailored CVs.
 

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Application Assistant</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <span class="logo-icon">🚀</span>
+        <div>
+          <h1 class="app-title">Job Application Assistant</h1>
+          <span class="guarantee-badge">Zero Auto-Submit Guarantee</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content Views -->
+    <main class="main-content">
+
+      <!-- Unauthenticated View -->
+      <section id="auth-logged-out" class="view-section hidden">
+        <div class="login-card">
+          <h2>Sign In to Assistant</h2>
+          <p class="subtitle">Connect to your Job Agent account to autofill forms.</p>
+          <form id="login-form">
+            <div class="form-group">
+              <label for="login-email">Email Address</label>
+              <input type="email" id="login-email" placeholder="user@example.com" required>
+            </div>
+            <div class="form-group">
+              <label for="login-password">Password</label>
+              <input type="password" id="login-password" placeholder="••••••••" required>
+            </div>
+            <button type="submit" id="login-btn" class="btn btn-primary btn-block">Sign In</button>
+          </form>
+          <div id="login-error" class="error-banner hidden"></div>
+        </div>
+      </section>
+
+      <!-- Authenticated View -->
+      <section id="auth-logged-in" class="view-section hidden">
+        <!-- Account Status Strip -->
+        <div class="account-strip">
+          <div class="user-info">
+            <span class="status-dot online"></span>
+            <span id="user-email-display" class="user-email">user@example.com</span>
+          </div>
+          <button id="logout-btn" class="btn-text">Sign Out</button>
+        </div>
+
+        <!-- Page ATS Detection Banner -->
+        <div id="ats-detection-banner" class="detection-banner">
+          <div class="detection-header">
+            <span id="ats-icon">🔍</span>
+            <span id="ats-board-name" class="board-name">Detecting page form...</span>
+          </div>
+          <div id="ats-details" class="detection-details">Scanning page inputs...</div>
+        </div>
+
+        <!-- Tailored CV Selection -->
+        <div class="form-group select-group">
+          <label for="cv-select">Select Tailored CV / Target Job:</label>
+          <select id="cv-select" class="form-select">
+            <option value="">-- Active Master CV Profile --</option>
+          </select>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions-group">
+          <button id="autofill-btn" class="btn btn-success btn-block">
+            <span>✨</span> Autofill Form Fields
+          </button>
+          <button id="mark-applied-btn" class="btn btn-secondary btn-block">
+            <span>✅</span> Mark as Applied
+          </button>
+        </div>
+
+        <!-- Status / Feedback Banner -->
+        <div id="action-feedback" class="feedback-banner hidden"></div>
+
+        <!-- Zero Auto-Submit Policy Guarantee Footer -->
+        <div class="policy-footer">
+          🔒 <strong>Zero Auto-Submit Guarantee:</strong> Extension only fills fields. You MUST manually review and click submit on the ATS page.
+        </div>
+      </section>
+
+    </main>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -96,4 +96,6 @@ For production email deliverability and domain reputation protection:
 
 ### Known Minor Issues (Non-blocking)
 - **Module 5 Cosmetic Wording Bug**: Explanation wording for lower-scoring jobs occasionally includes `"based on verified expertise in ."` (dangling period when key skill parameter is empty). This issue does not affect scoring, matching, or exclusion correctness, and is logged to revisit later.
+- **Module 6 Chrome Extension Deployment Host Permissions**: The extension's `manifest.json` `host_permissions` and popup API base URL currently target `localhost`/`127.0.0.1` for local development, and will need to be updated to match the production API domain at deployment time.
+
 

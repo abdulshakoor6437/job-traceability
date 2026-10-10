@@ -190,6 +190,20 @@ router.get('/job/:jobId/current', async (req: AuthenticatedRequest, res: Respons
 });
 
 // ---------------------------------------------------------------------------
+// GET /api/tailored-cv/list  — list current tailored CVs for the authenticated user
+// Returns one row per job showing only current version (is_current = 1) with company details
+// ---------------------------------------------------------------------------
+router.get('/list', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const list = await tailoredCvDal.listCurrentByUser(userId);
+    res.json({ tailoredCvs: list, list });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // GET /api/tailored-cv/:id  — get a specific version by ID
 // ---------------------------------------------------------------------------
 router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {

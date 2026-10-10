@@ -85,6 +85,19 @@ export interface FullTailoredCv {
   certifications: TailoredCvCertificationRow[];
 }
 
+export interface TailoredCvSummaryRow {
+  id: string;
+  jobId: string;
+  job_id: string;
+  jobTitle: string;
+  job_title: string;
+  company: string | null;
+  versionNumber: number;
+  version_number: number;
+  createdAt: Date;
+  created_at: Date;
+}
+
 // ---------------------------------------------------------------------------
 // DAL
 // ---------------------------------------------------------------------------
@@ -210,6 +223,42 @@ export class TailoredCvDal {
       [userId, jobId]
     );
     return rows;
+  }
+
+  /**
+   * Return current tailored CV versions (is_current = 1) for a user,
+   * joined with cached_jobs to include company name.
+   * Scoped strictly to userId.
+   */
+  async listCurrentByUser(userId: string): Promise<TailoredCvSummaryRow[]> {
+    const pool = getDbPool();
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT 
+         t.id,
+         t.job_id,
+         t.job_title,
+         t.version_number,
+         t.created_at,
+         c.company
+       FROM tailored_cvs t
+       LEFT JOIN cached_jobs c ON t.job_id = c.id
+       WHERE t.user_id = ? AND t.is_current = 1
+       ORDER BY t.created_at DESC`,
+      [userId]
+    );
+
+    return rows.map((r) => ({
+      id: r.id,
+      jobId: r.job_id,
+      job_id: r.job_id,
+      jobTitle: r.job_title,
+      job_title: r.job_title,
+      company: r.company || null,
+      versionNumber: Number(r.version_number),
+      version_number: Number(r.version_number),
+      createdAt: r.created_at,
+      created_at: r.created_at,
+    }));
   }
 
   /** Return the current version for a user+job pair (is_current=1). */
