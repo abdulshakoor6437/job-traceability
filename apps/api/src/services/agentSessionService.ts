@@ -215,6 +215,7 @@ export class AgentSessionService {
 
     // Score results against user's active CV using Module 3's matching logic
     let totalMatches = 0;
+    let notificationsCreated = 0;
     try {
       const matchResult = await matchingService.searchMatches(
         userId,
@@ -222,11 +223,39 @@ export class AgentSessionService {
         { forceRefresh: true }
       );
       totalMatches = matchResult.totalMatches;
+
+      // Module 8 Item 1: High-Match Notifications Hook
+      const highMatchThreshold = parseInt(process.env.HIGH_MATCH_NOTIFICATION_THRESHOLD || '85', 10);
+      const dailyCap = parseInt(process.env.DAILY_NOTIFICATION_CAP || '10', 10);
+
+      let todayCount = await userDal.getTodayNotificationCount();
+
+      for (const match of matchResult.matches || []) {
+        if (match.matchScore >= highMatchThreshold) {
+          if (todayCount >= dailyCap) {
+            console.log(`[AGENT SESSION CONTROL] Daily notification cap (${dailyCap}) reached for user ${userId}. Skipping further notifications.`);
+            break;
+          }
+
+          const alreadyNotified = await userDal.hasNotificationForJob(match.job.id);
+          if (!alreadyNotified) {
+            await userDal.createNotification(
+              'high_match',
+              `High job match: ${match.job.title} at ${match.job.company} (${match.matchScore}% match)`,
+              match.job.id,
+              null
+            );
+            todayCount++;
+            notificationsCreated++;
+            console.log(`[AGENT SESSION CONTROL] Created high-match notification for user ${userId}, job '${match.job.title}' (score: ${match.matchScore})`);
+          }
+        }
+      }
     } catch (matchErr: any) {
       console.warn(`[AGENT SESSION CONTROL] Matching failed during background job (no active CV?): ${matchErr.message}`);
     }
 
-    console.log(`[AGENT SESSION CONTROL] Background job completed for user ${userId}. External API calls made: ${callsMade}, total matches scored: ${totalMatches}.`);
+    console.log(`[AGENT SESSION CONTROL] Background job completed for user ${userId}. External API calls made: ${callsMade}, total matches scored: ${totalMatches}, notifications created: ${notificationsCreated}.`);
     return {
       executed: true,
       skipped: false,

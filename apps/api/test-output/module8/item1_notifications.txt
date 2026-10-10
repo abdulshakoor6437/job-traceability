@@ -1,0 +1,25 @@
+================================================================
+🧪 SCOPE ITEM 1 VERIFICATION: User Notifications Table & Endpoints
+================================================================
+
+1. Creating notifications for User A directly via DAL...
+   Created Notif 1 ID: 83dc0334-7676-4fb5-9685-321e2c899a2b, type: high_match, is_read: 0
+   Created Notif 2 ID: 258eb37c-3422-458d-9c9f-b9c2b47b231b, type: high_match, is_read: 0
+
+2. Testing GET /api/notifications for User A via HTTP API...
+   HTTP Status: 200
+   Unread Count: 2
+   Notifications Returned: 2
+
+3. Testing PUT /api/notifications/:id/read for User A...
+   Mark Read HTTP Status: 200
+   Updated Unread Count: 1 (Expected: 1)
+
+4. Testing Cross-User Isolation (User B cannot access or mutate User A notification)...
+   User B Unread Count: 0 (Expected: 0)
+   User B Notifications Count: 0 (Expected: 0)
+   User B Cross-Mutate Attempt Status: 404 (Expected: 404)
+
+================================================================
+✅ ITEM 1 VERIFICATION PASSED PERFECTLY!
+================================================================

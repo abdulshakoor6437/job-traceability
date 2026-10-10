@@ -127,6 +127,99 @@ export class UserScopedDal {
     }
     return updated;
   }
+
+  // --- Notifications DAL Methods (Module 8 Item 1) ---
+
+  async getNotifications(options?: { unreadOnly?: boolean; limit?: number }): Promise<{
+    notifications: UserNotificationRow[];
+    unreadCount: number;
+  }> {
+    const pool = getDbPool();
+    const limit = options?.limit || 50;
+
+    let sql = `SELECT * FROM user_notifications WHERE user_id = ?`;
+    const params: any[] = [this.userId];
+
+    if (options?.unreadOnly) {
+      sql += ` AND is_read = 0`;
+    }
+    sql += ` ORDER BY created_at DESC LIMIT ?`;
+    params.push(limit);
+
+    const [notifications] = await pool.query<UserNotificationRow[]>(sql, params);
+
+    const [countRows] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) as unread_count FROM user_notifications WHERE user_id = ? AND is_read = 0`,
+      [this.userId]
+    );
+
+    return {
+      notifications,
+      unreadCount: countRows[0]?.unread_count || 0,
+    };
+  }
+
+  async markNotificationRead(notificationId: string): Promise<boolean> {
+    const pool = getDbPool();
+    const [result] = await pool.execute<ResultSetHeader>(
+      `UPDATE user_notifications SET is_read = 1 WHERE id = ? AND user_id = ?`,
+      [notificationId, this.userId]
+    );
+    return result.affectedRows > 0;
+  }
+
+  async markAllNotificationsRead(): Promise<number> {
+    const pool = getDbPool();
+    const [result] = await pool.execute<ResultSetHeader>(
+      `UPDATE user_notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0`,
+      [this.userId]
+    );
+    return result.affectedRows;
+  }
+
+  async createNotification(
+    type: string,
+    message: string,
+    relatedJobId?: string | null,
+    relatedTailoredCvId?: string | null
+  ): Promise<UserNotificationRow> {
+    const pool = getDbPool();
+    const id = crypto.randomUUID();
+    const cleanJobId = relatedJobId !== undefined && relatedJobId !== null ? relatedJobId : null;
+    const cleanCvId = relatedTailoredCvId !== undefined && relatedTailoredCvId !== null ? relatedTailoredCvId : null;
+
+    await pool.execute(
+      `INSERT INTO user_notifications (id, user_id, type, message, related_job_id, related_tailored_cv_id, is_read, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 0, NOW())`,
+      [id, this.userId, type, message, cleanJobId, cleanCvId]
+    );
+
+    const [rows] = await pool.query<UserNotificationRow[]>(
+      `SELECT * FROM user_notifications WHERE id = ? AND user_id = ? LIMIT 1`,
+      [id, this.userId]
+    );
+    return rows[0];
+  }
+
+  async getTodayNotificationCount(): Promise<number> {
+    const pool = getDbPool();
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) as today_count FROM user_notifications 
+       WHERE user_id = ? AND DATE(created_at) = CURDATE()`,
+      [this.userId]
+    );
+    return rows[0]?.today_count || 0;
+  }
+
+  async hasNotificationForJob(jobId: string): Promise<boolean> {
+    if (!jobId) return false;
+    const pool = getDbPool();
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT id FROM user_notifications WHERE user_id = ? AND related_job_id = ? LIMIT 1`,
+      [this.userId, jobId]
+    );
+    return rows.length > 0;
+  }
 }
 
 export interface UserSearchPreferencesRow extends RowDataPacket {
@@ -137,6 +230,17 @@ export interface UserSearchPreferencesRow extends RowDataPacket {
   filters_json: string | null;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface UserNotificationRow extends RowDataPacket {
+  id: string;
+  user_id: string;
+  type: string;
+  message: string;
+  related_job_id: string | null;
+  related_tailored_cv_id: string | null;
+  is_read: number;
+  created_at: Date;
 }
 
 export function createUserScopedDal(userId: string): UserScopedDal {
