@@ -176,6 +176,12 @@ export class AuthService {
       idleExpiresAt
     );
 
+    // Schedule background job on login (Item 3 & Test a)
+    const { agentSessionService } = require('./agentSessionService');
+    await agentSessionService.scheduleUserJob(user.id).catch((err: any) => {
+      console.warn(`Failed to schedule job on login: ${err.message}`);
+    });
+
     return { rawToken, userId: user.id };
   }
 
@@ -194,11 +200,15 @@ export class AuthService {
 
     if (now > new Date(session.expires_at)) {
       await authDal.deleteSession(session.id);
+      const { agentSessionService } = require('./agentSessionService');
+      await agentSessionService.removeUserJob(session.user_id).catch(() => {});
       return null;
     }
 
     if (now > new Date(session.idle_expires_at)) {
       await authDal.deleteSession(session.id);
+      const { agentSessionService } = require('./agentSessionService');
+      await agentSessionService.removeUserJob(session.user_id).catch(() => {});
       return null;
     }
 
@@ -209,6 +219,10 @@ export class AuthService {
       const newIdleExpiresAt = new Date(finalIdleMs);
 
       await authDal.touchSession(session.id, newIdleExpiresAt);
+
+      // Ensure active user background job is scheduled on heartbeat/activity
+      const { agentSessionService } = require('./agentSessionService');
+      await agentSessionService.scheduleUserJob(session.user_id).catch(() => {});
     }
 
     return { userId: session.user_id, sessionId: session.id };
@@ -216,7 +230,14 @@ export class AuthService {
 
   async logout(rawToken: string): Promise<void> {
     const tokenHash = hashToken(rawToken);
-    await authDal.deleteSessionByTokenHash(tokenHash);
+    const session = await authDal.findSessionByTokenHash(tokenHash);
+    if (session) {
+      await authDal.deleteSessionByTokenHash(tokenHash);
+      const { agentSessionService } = require('./agentSessionService');
+      await agentSessionService.removeUserJob(session.user_id).catch((err: any) => {
+        console.warn(`Failed to remove job on logout: ${err.message}`);
+      });
+    }
   }
 
   async requestPasswordReset(email: string): Promise<string> {

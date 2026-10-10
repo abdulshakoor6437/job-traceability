@@ -12,6 +12,11 @@ router.post('/heartbeat', async (req: AuthenticatedRequest, res: Response) => {
     await userDal.touchLastActive();
     const profile = await userDal.getProfile();
 
+    if (req.userId) {
+      const { agentSessionService } = require('../services/agentSessionService');
+      await agentSessionService.scheduleUserJob(req.userId).catch(() => {});
+    }
+
     res.json({
       message: 'Heartbeat recorded.',
       lastActiveAt: profile?.last_active_at,
