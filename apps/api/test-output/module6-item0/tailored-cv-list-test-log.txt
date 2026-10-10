@@ -5,26 +5,26 @@
 ✅ Test server running on http://127.0.0.1:4099
 
 1. Creating User A and User B...
-   User A ID: aadc8fdc-9200-4181-8b39-a28346b33235
-   User B ID: b23502f9-08ce-4f33-9dbe-43799364dbb1
+   User A ID: 58727048-7ffc-4c1f-823c-3ba6adccf4f9
+   User B ID: cfca882f-d33b-471d-980d-78b3819fc933
 
 2. Seeding test jobs in cached_jobs...
    ✅ Seeded 3 jobs (Acme Corp, Beta Tech, Gamma Systems)
 
 3. Generating tailored CVs for User A...
-   Created User A - Job 1 - Version 1 (ID: efa7d4fb-3a6c-499c-9201-9088584d78d6)
-   Created User A - Job 1 - Version 2 (ID: 12b959c0-3268-4657-b6a1-5d673bdfcd7c, is_current=1)
-   Created User A - Job 2 - Version 1 (ID: 158920b8-413f-4cee-8c6a-f5a3b55f521c, is_current=1)
+   Created User A - Job 1 - Version 1 (ID: afd66997-8aa5-4532-8a29-df1e29f15d30)
+   Created User A - Job 1 - Version 2 (ID: aef30beb-2dad-49e7-bbd9-d7fbd320c5da, is_current=1)
+   Created User A - Job 2 - Version 1 (ID: f20a1ea3-90df-4adb-a59a-d2c7458c9632, is_current=1)
 
 4. Generating tailored CV for User B...
-   Created User B - Job 3 - Version 1 (ID: f753e2ea-aaa1-4332-9da4-a56e3a88317a, is_current=1)
+   Created User B - Job 3 - Version 1 (ID: ac46c590-d372-4e82-8e1e-19c9c4ad7035, is_current=1)
 
 5. Requesting GET /api/tailored-cv/list for User A...
    HTTP Response Status: 200
    Response Body: {
   "tailoredCvs": [
     {
-      "id": "12b959c0-3268-4657-b6a1-5d673bdfcd7c",
+      "id": "aef30beb-2dad-49e7-bbd9-d7fbd320c5da",
       "jobId": "job-list-001",
       "job_id": "job-list-001",
       "jobTitle": "Senior Backend Engineer",
@@ -32,11 +32,11 @@
       "company": "Acme Corp",
       "versionNumber": 2,
       "version_number": 2,
-      "createdAt": "2026-10-10T09:57:22.000Z",
-      "created_at": "2026-10-10T09:57:22.000Z"
+      "createdAt": "2026-10-10T10:37:24.000Z",
+      "created_at": "2026-10-10T10:37:24.000Z"
     },
     {
-      "id": "158920b8-413f-4cee-8c6a-f5a3b55f521c",
+      "id": "f20a1ea3-90df-4adb-a59a-d2c7458c9632",
       "jobId": "job-list-002",
       "job_id": "job-list-002",
       "jobTitle": "Fullstack Developer",
@@ -44,13 +44,13 @@
       "company": "Beta Tech",
       "versionNumber": 1,
       "version_number": 1,
-      "createdAt": "2026-10-10T09:57:22.000Z",
-      "created_at": "2026-10-10T09:57:22.000Z"
+      "createdAt": "2026-10-10T10:37:24.000Z",
+      "created_at": "2026-10-10T10:37:24.000Z"
     }
   ],
   "list": [
     {
-      "id": "12b959c0-3268-4657-b6a1-5d673bdfcd7c",
+      "id": "aef30beb-2dad-49e7-bbd9-d7fbd320c5da",
       "jobId": "job-list-001",
       "job_id": "job-list-001",
       "jobTitle": "Senior Backend Engineer",
@@ -58,11 +58,11 @@
       "company": "Acme Corp",
       "versionNumber": 2,
       "version_number": 2,
-      "createdAt": "2026-10-10T09:57:22.000Z",
-      "created_at": "2026-10-10T09:57:22.000Z"
+      "createdAt": "2026-10-10T10:37:24.000Z",
+      "created_at": "2026-10-10T10:37:24.000Z"
     },
     {
-      "id": "158920b8-413f-4cee-8c6a-f5a3b55f521c",
+      "id": "f20a1ea3-90df-4adb-a59a-d2c7458c9632",
       "jobId": "job-list-002",
       "job_id": "job-list-002",
       "jobTitle": "Fullstack Developer",
@@ -70,8 +70,8 @@
       "company": "Beta Tech",
       "versionNumber": 1,
       "version_number": 1,
-      "createdAt": "2026-10-10T09:57:22.000Z",
-      "created_at": "2026-10-10T09:57:22.000Z"
+      "createdAt": "2026-10-10T10:37:24.000Z",
+      "created_at": "2026-10-10T10:37:24.000Z"
     }
   ]
 }
@@ -80,8 +80,8 @@
    ✅ Requirement 1 PASSED: Historical versions excluded, only current version (is_current=1) returned per job.
 
    Verifying row data formatting (Requirement 2):
-   Job 1 Row: Senior Backend Engineer @ Acme Corp — v2 (ID: 12b959c0-3268-4657-b6a1-5d673bdfcd7c, JobID: job-list-001, CreatedAt: 2026-10-10T09:57:22.000Z)
-   Job 2 Row: Fullstack Developer @ Beta Tech — v1 (ID: 158920b8-413f-4cee-8c6a-f5a3b55f521c, JobID: job-list-002, CreatedAt: 2026-10-10T09:57:22.000Z)
+   Job 1 Row: Senior Backend Engineer @ Acme Corp — v2 (ID: aef30beb-2dad-49e7-bbd9-d7fbd320c5da, JobID: job-list-001, CreatedAt: 2026-10-10T10:37:24.000Z)
+   Job 2 Row: Fullstack Developer @ Beta Tech — v1 (ID: f20a1ea3-90df-4adb-a59a-d2c7458c9632, JobID: job-list-002, CreatedAt: 2026-10-10T10:37:24.000Z)
    ✅ Requirement 2 PASSED: Rows include tailored CV ID, job ID, job title, company, version number, created_at for popup dropdown.
 
 6. Testing Cross-User Isolation (Requirement 3)...

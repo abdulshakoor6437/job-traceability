@@ -3,8 +3,8 @@
 ========================================================================
 
 --- Setup: cleaning test data ---
-User A CV profile id: b39bd7af-2ec2-43e4-b02c-2a6f3eb6b0f5
-User B CV profile id: 80f820ad-4c2c-4f0d-9e24-b68c1aff5400
+User A CV profile id: 25a401c1-36e0-4880-843c-390adad41d8d
+User B CV profile id: 7ea56461-8c0f-4547-aa42-99c86dd03349
 --- Setup complete ---
 
 ------------------------------------------------------------------------
@@ -84,11 +84,11 @@ TEST (b): Fabricated entity caught — two DISTINCT LLM calls evidenced
 ------------------------------------------------------------------------
 TEST (c): Two versions for same job — history stored, one is current
 ------------------------------------------------------------------------
-  Version 1 id: 94056567-40c6-43d8-bd42-dd48ba190edf  version_number: 1  is_current: 1
-  Version 2 id: fc2805df-62dd-4d25-9921-6b53db070532  version_number: 2  is_current: 1
+  Version 1 id: d2ed4e91-495a-464a-993e-db61bc6c6b80  version_number: 1  is_current: 1
+  Version 2 id: 2f24e87a-5b92-47b8-b26d-339008b3631e  version_number: 2  is_current: 1
   Total versions stored: 2
   Versions marked is_current=1: 1 (expected: 1)
-  Current version id: fc2805df-62dd-4d25-9921-6b53db070532  (expected: fc2805df-62dd-4d25-9921-6b53db070532)
+  Current version id: 2f24e87a-5b92-47b8-b26d-339008b3631e  (expected: 2f24e87a-5b92-47b8-b26d-339008b3631e)
   v1 is_current after v2 created: 0 (expected: 0)
 ✅ TEST (c) PASSED: Both versions stored. v2 is_current=1, v1 is_current=0.
 
@@ -113,12 +113,12 @@ TEST (e): PDF/DOCX export only on explicit user action — never automatic
 ------------------------------------------------------------------------
 TEST (f): Cross-user DAL isolation — User A cannot access User B data
 ------------------------------------------------------------------------
-  User B tailored CV id: c332f54a-9bd2-4674-95d5-6026f42b24ff
+  User B tailored CV id: ad643b97-89f4-465b-a1de-550ff6260956
   User A getById(User B's CV id): null (expected: null)
   User A listByJob contains User B rows: false (expected: false)
   User A listByJob row count: 2
-    row: id=fc2805df-62dd-4d25-9921-6b53db070532  user_id=mod4-acc-user-a
-    row: id=94056567-40c6-43d8-bd42-dd48ba190edf  user_id=mod4-acc-user-a
+    row: id=2f24e87a-5b92-47b8-b26d-339008b3631e  user_id=mod4-acc-user-a
+    row: id=d2ed4e91-495a-464a-993e-db61bc6c6b80  user_id=mod4-acc-user-a
   getCurrentByJob for USER_A returns user_id=mod4-acc-user-a (expected: mod4-acc-user-a)
 ✅ TEST (f) PASSED: User A cannot view, generate for, or access User B tailored CVs.
 

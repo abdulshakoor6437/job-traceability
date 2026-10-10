@@ -8,80 +8,80 @@
 ⏳ Waiting for Next.js Web App (http://localhost:3000) to respond...
 ✅ Next.js Web Server listening on http://localhost:3000
 [WEB SERVER OUTPUT] ▲ Next.js 14.2.35
-  - Local:        http://localhost:3000
-
- ✓ Starting...
+[WEB SERVER OUTPUT] - Local:        http://localhost:3000
+[WEB SERVER OUTPUT] 
+[WEB SERVER OUTPUT] ✓ Starting...
 ▶ [TEST a] Starting Full Manual Walkthrough via Browser Automation...
    1. Navigating to Signup page...
-[WEB SERVER OUTPUT] ✓ Ready in 11.2s
+[WEB SERVER OUTPUT] ✓ Ready in 15s
 [WEB SERVER OUTPUT] ○ Compiling /signup ...
-[WEB SERVER OUTPUT] ✓ Compiled /signup in 3.3s (489 modules)
-[WEB SERVER OUTPUT] GET /signup 200 in 4113ms
+[WEB SERVER OUTPUT] ✓ Compiled /signup in 5.8s (489 modules)
+[WEB SERVER OUTPUT] GET /signup 200 in 7949ms
+[WEB SERVER STDERR] (node:8908) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
 [WEB SERVER OUTPUT] ○ Compiling /dashboard ...
-[WEB SERVER OUTPUT] ✓ Compiled /dashboard in 1193ms (504 modules)
-[WEB SERVER OUTPUT] GET /dashboard 200 in 2079ms
+[WEB SERVER OUTPUT] ✓ Compiled /dashboard in 1964ms (504 modules)
+[WEB SERVER OUTPUT] GET /dashboard 200 in 3134ms
    ✅ Step 1 (Login & Shell): Saved screenshot to C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\step1_login_dashboard.png
    3. Navigating to CV Management page & uploading PDF...
 [WEB SERVER OUTPUT] ○ Compiling /dashboard/cv ...
-[WEB SERVER STDERR] (node:20192) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
-(Use `node --trace-deprecation ...` to show where the warning was created)
-[WEB SERVER OUTPUT] ✓ Compiled /dashboard/cv in 2.1s (510 modules)
-[WEB SERVER OUTPUT] GET /dashboard/cv 200 in 2604ms
+[WEB SERVER OUTPUT] ✓ Compiled /dashboard/cv in 1747ms (510 modules)
+[WEB SERVER OUTPUT] GET /dashboard/cv 200 in 2532ms
    ⏳ Waiting for CV parsing and editor form to render...
    ✅ Step 2 (CV Upload & Parsing): Saved screenshot to C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\step2_cv_parsed.png
    4. Editing CV profile summary & saving...
    ✅ Step 3 (CV Profile Save): Saved screenshot to C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\step3_cv_edited.png
    5. Navigating to Job Matches & executing search...
 [WEB SERVER OUTPUT] ○ Compiling /dashboard/jobs ...
-[WEB SERVER OUTPUT] ✓ Compiled /dashboard/jobs in 889ms (516 modules)
-[WEB SERVER OUTPUT] GET /dashboard/jobs 200 in 1185ms
+[WEB SERVER OUTPUT] ✓ Compiled /dashboard/jobs in 1005ms (516 modules)
+[WEB SERVER OUTPUT] GET /dashboard/jobs 200 in 1481ms
    ✅ Step 4 (Ranked Job Matches): Saved screenshot to C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\step4_job_matches.png
    6. Triggering Tailored CV Generation...
 [WEB SERVER OUTPUT] ○ Compiling /dashboard/tailored ...
-[WEB SERVER OUTPUT] ✓ Compiled /dashboard/tailored in 1099ms (522 modules)
-[WEB SERVER OUTPUT] GET /dashboard/tailored?jobId=test-job-id-001 200 in 1439ms
+[WEB SERVER OUTPUT] ✓ Compiled /dashboard/tailored in 992ms (522 modules)
+[WEB SERVER OUTPUT] GET /dashboard/tailored?jobId=test-job-id-001 200 in 1336ms
    ✅ Step 5 (Tailored CV Generation): Saved screenshot to C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\step5_tailored_cv.png
    7. Editing Tailored CV and Exporting DOCX/PDF...
    ✅ Step 6 (Tailored Edit & Export Buttons): Saved screenshot to C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\step6_tailored_edited.png
    8. Navigating to Settings & Logging out...
 [WEB SERVER OUTPUT] ○ Compiling /dashboard/settings ...
-[WEB SERVER OUTPUT] ✓ Compiled /dashboard/settings in 1023ms (528 modules)
-[WEB SERVER OUTPUT] GET /dashboard/settings 200 in 1301ms
+[WEB SERVER OUTPUT] ✓ Compiled /dashboard/settings in 2.6s (528 modules)
+[WEB SERVER OUTPUT] GET /dashboard/settings 200 in 3298ms
    ✅ Step 7 (Settings Screen): Saved screenshot to C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\step7_settings_screen.png
 [WEB SERVER OUTPUT] ○ Compiling /login ...
-[WEB SERVER OUTPUT] ✓ Compiled /login in 782ms (534 modules)
+[WEB SERVER OUTPUT] ✓ Compiled /login in 1368ms (534 modules)
    ✅ Step 8 (Clean Logout): Saved screenshot to C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\step8_logged_out.png
 ✅ TEST (a) PASSED: Full browser walkthrough executed & documented.
 
 ▶ [TEST b] Testing Session Expiry Mid-Dashboard-Use Redirect...
-[WEB SERVER OUTPUT] GET /dashboard 200 in 153ms
-[WEB SERVER OUTPUT] GET /dashboard/cv 200 in 179ms
+[WEB SERVER OUTPUT] GET /dashboard 200 in 376ms
+[WEB SERVER OUTPUT] GET /dashboard/cv 200 in 594ms
    Redirect URL: http://localhost:3000/login
    Screenshot saved: C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\test_b_session_expired.png
 ✅ TEST (b) PASSED: Expired session cleanly redirected to /login.
 
 ▶ [TEST c] Testing Multi-Tenant Session Isolation (User A vs User B)...
-[WEB SERVER OUTPUT] GET /dashboard 200 in 55ms
-[WEB SERVER OUTPUT] GET /dashboard/cv 200 in 91ms
+[WEB SERVER OUTPUT] GET /dashboard 200 in 133ms
+[WEB SERVER OUTPUT] GET /dashboard/cv 200 in 234ms
    Screenshot saved: C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\test_c_user_b_isolation.png
 ✅ TEST (c) PASSED: User B/C session strictly isolated; no User A data visible.
 
 ▶ [TEST d] Testing Excluded Jobs Toggle (Hidden by Default)...
-[WEB SERVER OUTPUT] GET /dashboard 200 in 167ms
-[WEB SERVER OUTPUT] GET /dashboard/jobs 200 in 279ms
+[WEB SERVER OUTPUT] GET /dashboard 200 in 485ms
+[WEB SERVER OUTPUT] GET /dashboard/jobs 200 in 846ms
    Screenshot saved: C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\test_d_excluded_toggle.png
 ✅ TEST (d) PASSED: Excluded jobs hidden by default, shown via toggle.
 
 ▶ [TEST e] Testing Cache-Hit vs Fresh Search Visual Distinction...
-[WEB SERVER OUTPUT] GET /dashboard 200 in 248ms
-[WEB SERVER OUTPUT] GET /dashboard/jobs 200 in 367ms
+[WEB SERVER OUTPUT] GET /dashboard 200 in 529ms
+[WEB SERVER OUTPUT] GET /dashboard/jobs 200 in 310ms
    Fresh search screenshot saved: C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\test_e_fresh_search.png
    Cache hit screenshot saved: C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\test_e_cache_badge.png
 ✅ TEST (e) PASSED: Visually distinguishable cache badge verified.
 
 ▶ [TEST f] Testing Daily Tailoring Cap UI Error State...
-[WEB SERVER OUTPUT] GET /dashboard 200 in 128ms
-[WEB SERVER OUTPUT] GET /dashboard/tailored?jobId=test-job-id-001 200 in 105ms
+[WEB SERVER OUTPUT] GET /dashboard 200 in 66ms
+[WEB SERVER OUTPUT] GET /dashboard/tailored?jobId=test-job-id-001 200 in 109ms
    Quota cap error screenshot saved: C:\Users\Admin\Desktop\Job apply agent\apps\api\test-output\module5\test_f_quota_cap.png
 ✅ TEST (f) PASSED: Daily tailoring cap displays clear message in UI.
 
