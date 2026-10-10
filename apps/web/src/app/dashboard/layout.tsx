@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Navigation from '../../components/Navigation';
+import NotificationBell from '../../components/NotificationBell';
 
 interface UserProfile {
   id: string;
@@ -119,7 +120,12 @@ export default function DashboardLayout({
     <div className="dashboard-layout">
       <Navigation userEmail={user?.email} onLogout={handleLogout} />
       <div className="dashboard-main">
-        {children}
+        <header className="dashboard-topbar" style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px 24px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+          <NotificationBell />
+        </header>
+        <div style={{ padding: '24px' }}>
+          {children}
+        </div>
       </div>
     </div>
   );

@@ -1,0 +1,18 @@
+================================================================
+🧪 SCOPE ITEM 2 VERIFICATION: Dashboard Notification Bell & Polling UI API
+================================================================
+
+1. Logging in user...
+2. Component initial poll (fetch-on-load): GET /api/notifications...
+   Unread Count Badge Value: 3 (Expected: 3)
+   Total Items Rendered in List: 3
+
+3. Simulating user clicking "Mark all read": PUT /api/notifications/read-all...
+   Mark All Response: {"success":true,"message":"Marked 3 notifications as read.","updatedCount":3}
+
+4. Component periodic poll after marking all read: GET /api/notifications...
+   Updated Unread Count Badge Value: 0 (Expected: 0)
+
+================================================================
+✅ ITEM 2 VERIFICATION PASSED PERFECTLY!
+================================================================
