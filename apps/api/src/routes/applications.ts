@@ -101,6 +101,34 @@ router.get('/job/:jobId', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
+// GET /api/applications/history — Query application status transition history (Item 4)
+// Query params: { applicationId?, status?, company? }
+// ---------------------------------------------------------------------------
+router.get('/history', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { applicationId, status, company } = req.query as {
+      applicationId?: string;
+      status?: string;
+      company?: string;
+    };
+
+    const history = await applicationDal.getStatusHistory(userId, {
+      applicationId: applicationId ? (applicationId as string) : undefined,
+      status: status ? (status as string) : undefined,
+      company: company ? (company as string) : undefined,
+    });
+
+    res.json({
+      success: true,
+      history,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // GET /api/applications — List user's application records
 // ---------------------------------------------------------------------------
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {

@@ -17,9 +17,40 @@ export interface UserApplicationRow extends RowDataPacket {
   company?: string;
 }
 
+export interface StatusHistoryRow extends RowDataPacket {
+  id: string;
+  user_id: string;
+  application_id: string;
+  from_status: string | null;
+  to_status: string;
+  notes: string | null;
+  transitioned_at: Date;
+  job_title?: string;
+  company?: string;
+}
+
 export class ApplicationDal {
   /**
-   * Mark a job as applied (or update status) for a user.
+   * Record status transition history row
+   */
+  async recordStatusTransition(params: {
+    userId: string;
+    applicationId: string;
+    fromStatus: string | null;
+    toStatus: string;
+    notes?: string | null;
+  }): Promise<void> {
+    const pool = getDbPool();
+    const id = crypto.randomUUID();
+    await pool.execute(
+      `INSERT INTO application_status_history (id, user_id, application_id, from_status, to_status, notes, transitioned_at)
+       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(3))`,
+      [id, params.userId, params.applicationId, params.fromStatus || null, params.toStatus, params.notes || null]
+    );
+  }
+
+  /**
+   * Mark a job as applied (or update status) for a user with status history tracking.
    * Scoped strictly to userId.
    */
   async markAsApplied(params: {
@@ -31,10 +62,13 @@ export class ApplicationDal {
   }): Promise<UserApplicationRow> {
     if (!params.userId) throw new Error('markAsApplied requires userId');
     const pool = getDbPool();
-    const id = crypto.randomUUID();
     const appStatus = (params.status || 'APPLIED').toUpperCase();
     const tailoredCvId = params.tailoredCvId || null;
     const notes = params.notes || null;
+
+    const existing = await this.getApplicationByJob(params.userId, params.jobId);
+    const oldStatus = existing ? existing.status : null;
+    const id = existing ? existing.id : crypto.randomUUID();
 
     await pool.execute(
       `INSERT INTO user_applications (id, user_id, job_id, tailored_cv_id, status, notes, applied_at)
@@ -47,6 +81,14 @@ export class ApplicationDal {
          updated_at = NOW()`,
       [id, params.userId, params.jobId, tailoredCvId, appStatus, notes]
     );
+
+    await this.recordStatusTransition({
+      userId: params.userId,
+      applicationId: id,
+      fromStatus: oldStatus,
+      toStatus: appStatus,
+      notes,
+    });
 
     const app = await this.getApplicationByJob(params.userId, params.jobId);
     if (!app) {
@@ -92,7 +134,7 @@ export class ApplicationDal {
   }
 
   /**
-   * Update status of an application.
+   * Update status of an application with transition history recording.
    * Scoped strictly to userId.
    */
   async updateStatus(
@@ -105,12 +147,25 @@ export class ApplicationDal {
     const pool = getDbPool();
     const appStatus = status.toUpperCase();
 
+    const existing = await this.getById(userId, applicationId);
+    if (!existing) return null;
+
+    const oldStatus = existing.status;
+
     await pool.execute(
       `UPDATE user_applications 
        SET status = ?, notes = COALESCE(?, notes), updated_at = NOW()
        WHERE id = ? AND user_id = ?`,
       [appStatus, notes || null, applicationId, userId]
     );
+
+    await this.recordStatusTransition({
+      userId,
+      applicationId,
+      fromStatus: oldStatus,
+      toStatus: appStatus,
+      notes: notes || null,
+    });
 
     return this.getById(userId, applicationId);
   }
@@ -134,10 +189,52 @@ export class ApplicationDal {
   }
 
   /**
-   * Test helper: clear user_applications table
+   * Query complete status transition history for a user.
+   * Scoped strictly to userId.
+   */
+  async getStatusHistory(
+    userId: string,
+    options?: {
+      applicationId?: string;
+      status?: string;
+      company?: string;
+    }
+  ): Promise<StatusHistoryRow[]> {
+    if (!userId) throw new Error('getStatusHistory requires userId');
+    const pool = getDbPool();
+
+    let sql = `SELECT h.*, j.title AS job_title, j.company
+               FROM application_status_history h
+               JOIN user_applications a ON h.application_id = a.id
+               LEFT JOIN cached_jobs j ON a.job_id = j.id
+               WHERE h.user_id = ?`;
+    const params: any[] = [userId];
+
+    if (options?.applicationId) {
+      sql += ` AND h.application_id = ?`;
+      params.push(options.applicationId);
+    }
+    if (options?.status) {
+      sql += ` AND h.to_status = ?`;
+      params.push(options.status.toUpperCase());
+    }
+    if (options?.company) {
+      sql += ` AND j.company LIKE ?`;
+      params.push(`%${options.company}%`);
+    }
+
+    sql += ` ORDER BY h.transitioned_at ASC`;
+
+    const [rows] = await pool.query<StatusHistoryRow[]>(sql, params);
+    return rows;
+  }
+
+  /**
+   * Test helper: clear user_applications and history tables
    */
   async resetAllForTesting(): Promise<void> {
     const pool = getDbPool();
+    await pool.execute(`DELETE FROM application_status_history`);
     await pool.execute(`DELETE FROM user_applications`);
   }
 }
