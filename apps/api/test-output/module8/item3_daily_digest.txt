@@ -1,0 +1,23 @@
+================================================================
+🧪 SCOPE ITEM 3 VERIFICATION: Daily Email Digest & Opt-Out Handling
+================================================================
+
+1. Creating 2 unread high-match notifications for User A...
+2. Creating 2 unread high-match notifications for User B...
+3. User B opts out of email digest via PUT /api/user/settings/digest...
+   User B Opt-Out Status: 200
+   User B Settings: email_digest_opt_out = 1
+
+4. Executing Daily Email Digest Job via digestService...
+   Users Processed: 130
+   Digest Emails Queued: 3
+   Total 'daily_digest' Outbox Rows: 3
+   Outbox Row ID: 2c258ecd-93f1-4b0c-a056-95e2c718b648, Recipient: digest_user_a_1791670029302@example.com, Payload: {"userId":"3b8efd97-6b93-4faf-bb5c-fece434b121f","email":"digest_user_a_1791670029302@example.com","count":2,"notifications":[{"id":"14786bae-cff2-41cd-8201-cd844628eec1","message":"High Match 1 (94%)","related_job_id":"job-a1","created_at":"2026-10-10T15:07:09.000Z"},{"id":"7c503a57-6b18-4506-8b03-018fdc4f5cc5","message":"High Match 2 (91%)","related_job_id":"job-a2","created_at":"2026-10-10T15:07:09.000Z"}]}
+   Outbox Row ID: 80e7a28e-04d5-498f-aa7e-7e7c73d301c7, Recipient: notif_user_a_1791669699669@example.com, Payload: {"userId":"2d0ba37d-dc95-4a56-9548-d09d63335302","email":"notif_user_a_1791669699669@example.com","count":2,"notifications":[{"id":"c71cc866-a394-47d6-98ff-980032566a72","message":"High job match found: Lead Infrastructure Architect at TechScale (88% match)","related_job_id":"job-102","created_at":"2026-10-10T15:01:39.000Z"},{"id":"ff397347-b43e-4455-a9fd-010598005bb4","message":"High job match found: Senior Staff DevOps Engineer at CloudCorp (92% match)","related_job_id":"job-101","created_at":"2026-10-10T15:01:39.000Z"}]}
+   Outbox Row ID: a607be86-25a7-46bc-8c7f-9d8ef52fd4de, Recipient: notif_user_a_1791669732413@example.com, Payload: {"userId":"e6ff64ad-403d-4996-bfac-560f94227270","email":"notif_user_a_1791669732413@example.com","count":1,"notifications":[{"id":"258eb37c-3422-458d-9c9f-b9c2b47b231b","message":"High job match found: Lead Infrastructure Architect at TechScale (88% match)","related_job_id":"job-102","created_at":"2026-10-10T15:02:12.000Z"}]}
+   User A Digest Payload count: 2 (Expected: 2 notifications in 1 email)
+   User B Digest Outbox Rows Count: 0 (Expected: 0)
+
+================================================================
+✅ ITEM 3 VERIFICATION PASSED PERFECTLY!
+================================================================

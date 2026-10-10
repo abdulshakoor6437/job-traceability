@@ -6,6 +6,8 @@ export interface UserSettingsRow extends RowDataPacket {
   id: string;
   user_id: string;
   timezone: string;
+  email_digest_opt_out: number;
+  last_digest_sent_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -89,6 +91,50 @@ export class UserScopedDal {
       throw new Error('Failed to retrieve updated user settings.');
     }
     return updated;
+  }
+
+  async updateDigestOptOut(optOut: boolean): Promise<UserSettingsRow> {
+    const pool = getDbPool();
+    const id = crypto.randomUUID();
+    const val = optOut ? 1 : 0;
+
+    await pool.execute(
+      `INSERT INTO user_settings (id, user_id, email_digest_opt_out) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE email_digest_opt_out = VALUES(email_digest_opt_out), updated_at = NOW()`,
+      [id, this.userId, val]
+    );
+
+    const updated = await this.getSettings();
+    if (!updated) {
+      throw new Error('Failed to retrieve updated user settings.');
+    }
+    return updated;
+  }
+
+  async getUnreadDigestNotifications(): Promise<UserNotificationRow[]> {
+    const pool = getDbPool();
+    const settings = await this.getSettings();
+    const lastSent = settings?.last_digest_sent_at;
+
+    let sql = `SELECT * FROM user_notifications WHERE user_id = ? AND is_read = 0 AND type = 'high_match'`;
+    const params: any[] = [this.userId];
+
+    if (lastSent) {
+      sql += ` AND created_at > ?`;
+      params.push(lastSent);
+    }
+    sql += ` ORDER BY created_at DESC`;
+
+    const [rows] = await pool.query<UserNotificationRow[]>(sql, params);
+    return rows;
+  }
+
+  async markDigestSent(): Promise<void> {
+    const pool = getDbPool();
+    await pool.execute(
+      `UPDATE user_settings SET last_digest_sent_at = NOW() WHERE user_id = ?`,
+      [this.userId]
+    );
   }
 
   async getSearchPreferences(): Promise<UserSearchPreferencesRow | null> {

@@ -69,6 +69,24 @@ router.patch('/settings', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
+// PUT /api/user/settings/digest
+router.put('/settings/digest', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { optOut } = req.body;
+    if (typeof optOut !== 'boolean') {
+      res.status(400).json({ message: 'optOut boolean field is required.' });
+      return;
+    }
+
+    const userDal = req.userScopedDal!;
+    const updated = await userDal.updateDigestOptOut(optOut);
+
+    res.json({ message: 'Digest settings updated successfully.', settings: updated });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to update digest settings.' });
+  }
+});
+
 // GET /api/user/search-preferences
 router.get('/search-preferences', async (req: AuthenticatedRequest, res: Response) => {
   try {
