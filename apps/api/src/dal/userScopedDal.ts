@@ -90,6 +90,53 @@ export class UserScopedDal {
     }
     return updated;
   }
+
+  async getSearchPreferences(): Promise<UserSearchPreferencesRow | null> {
+    const pool = getDbPool();
+    const [rows] = await pool.query<UserSearchPreferencesRow[]>(
+      `SELECT * FROM user_search_preferences WHERE user_id = ? LIMIT 1`,
+      [this.userId]
+    );
+    return rows.length > 0 ? rows[0] : null;
+  }
+
+  async updateSearchPreferences(role: string, location?: string | null, filters?: any): Promise<UserSearchPreferencesRow> {
+    if (!role || !role.trim()) {
+      throw new Error('Role string is required for search preferences.');
+    }
+
+    const pool = getDbPool();
+    const id = crypto.randomUUID();
+    const filtersJson = filters !== undefined && filters !== null ? JSON.stringify(filters) : null;
+    const cleanLocation = location && typeof location === 'string' ? location.trim() : null;
+
+    await pool.execute(
+      `INSERT INTO user_search_preferences (id, user_id, role, location, filters_json)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         role = VALUES(role),
+         location = VALUES(location),
+         filters_json = VALUES(filters_json),
+         updated_at = NOW()`,
+      [id, this.userId, role.trim(), cleanLocation, filtersJson]
+    );
+
+    const updated = await this.getSearchPreferences();
+    if (!updated) {
+      throw new Error('Failed to retrieve updated user search preferences.');
+    }
+    return updated;
+  }
+}
+
+export interface UserSearchPreferencesRow extends RowDataPacket {
+  id: string;
+  user_id: string;
+  role: string;
+  location: string | null;
+  filters_json: string | null;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export function createUserScopedDal(userId: string): UserScopedDal {

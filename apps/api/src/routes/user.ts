@@ -69,4 +69,60 @@ router.patch('/settings', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
+// GET /api/user/search-preferences
+router.get('/search-preferences', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userDal = req.userScopedDal!;
+    const prefs = await userDal.getSearchPreferences();
+
+    if (!prefs) {
+      res.status(404).json({ message: 'User search preferences not found.' });
+      return;
+    }
+
+    res.json({
+      preferences: {
+        id: prefs.id,
+        userId: prefs.user_id,
+        role: prefs.role,
+        location: prefs.location,
+        filters: prefs.filters_json ? JSON.parse(prefs.filters_json) : null,
+        createdAt: prefs.created_at,
+        updatedAt: prefs.updated_at,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to retrieve search preferences.' });
+  }
+});
+
+// PUT /api/user/search-preferences
+router.put('/search-preferences', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { role, location, filters } = req.body;
+    if (!role || typeof role !== 'string' || !role.trim()) {
+      res.status(400).json({ message: 'Role string is required for search preferences.' });
+      return;
+    }
+
+    const userDal = req.userScopedDal!;
+    const updated = await userDal.updateSearchPreferences(role, location, filters);
+
+    res.json({
+      message: 'Search preferences updated successfully.',
+      preferences: {
+        id: updated.id,
+        userId: updated.user_id,
+        role: updated.role,
+        location: updated.location,
+        filters: updated.filters_json ? JSON.parse(updated.filters_json) : null,
+        createdAt: updated.created_at,
+        updatedAt: updated.updated_at,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to update search preferences.' });
+  }
+});
+
 export default router;

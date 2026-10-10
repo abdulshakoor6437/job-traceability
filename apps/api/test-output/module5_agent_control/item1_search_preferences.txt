@@ -1,0 +1,20 @@
+================================================================
+🧪 SCOPE ITEM 1 VERIFICATION: User Search Preferences Endpoint
+================================================================
+Flagged Addition: User search-preferences table (user_search_preferences) and endpoints added as a required addition.
+
+1. Registering user pref_user_1791648510058@example.com...
+   Signup Status: 201
+2. Logging in...
+   Login Status: 200
+3. Fetching search preferences before setting (expect 404)...
+   GET Status: 404
+4. Updating search preferences via PUT /api/user/search-preferences...
+   PUT Status: 200
+   Saved Role: Senior Backend Engineer
+   Saved Location: Remote
+5. Verifying stored preferences via GET /api/user/search-preferences...
+   GET Status: 200
+   Retrieved Role: Senior Backend Engineer
+
+✅ ITEM 1 VERIFICATION PASSED PERFECTLY!
