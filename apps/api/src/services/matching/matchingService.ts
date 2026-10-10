@@ -7,7 +7,7 @@ import { MockEmbeddingProvider } from './providers/mockEmbeddingProvider';
 import { IEmbeddingProvider, MatchSearchParams, MatchSearchResult, ScoredJobMatch } from './types';
 import { computeCosineSimilarity, convertCosineToScore, getMatchLabel } from './cosineSimilarity';
 import { screenJobDescription } from './redFlagFilter';
-import { defaultFitExplanationService, FitExplanationService, sanitizeFitExplanation } from './fitExplanationService';
+import { defaultFitExplanationService, FitExplanationService, MockFitExplanationProvider, sanitizeFitExplanation } from './fitExplanationService';
 import { MATCHING_CONFIG } from './matchingConfig';
 
 export class MatchingService {
@@ -22,10 +22,16 @@ export class MatchingService {
   }) {
     this.embeddingProvider =
       options?.embeddingProvider ||
-      (process.env.GEMINI_API_KEY ? new GeminiEmbeddingProvider() : new MockEmbeddingProvider());
+      (process.env.USE_MOCK_EMBEDDINGS === 'true' || !process.env.GEMINI_API_KEY
+        ? new MockEmbeddingProvider()
+        : new GeminiEmbeddingProvider());
     this.embeddingService =
       options?.embeddingService || new EmbeddingService(this.embeddingProvider);
-    this.fitExplanationService = options?.fitExplanationService || defaultFitExplanationService;
+    this.fitExplanationService =
+      options?.fitExplanationService ||
+      (process.env.USE_MOCK_EMBEDDINGS === 'true'
+        ? new FitExplanationService([new MockFitExplanationProvider()])
+        : defaultFitExplanationService);
   }
 
   /**

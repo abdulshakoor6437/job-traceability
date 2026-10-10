@@ -1,0 +1,55 @@
+========================================================================
+🎯 MODULE 5: AGENT SESSION CONTROL ACCEPTANCE TEST SUITE (Tests a - f)
+========================================================================
+
+------------------------------------------------------------------------
+▶ Acceptance Test (a): Background Job Scheduling on User Login
+------------------------------------------------------------------------
+  - User ID: a7e98018-e306-4d7c-a1ed-117b9a271776
+  - Login HTTP Status: 200
+  - Job Scheduled in Redis: true
+  - Redis Key Metadata: {"userId":"a7e98018-e306-4d7c-a1ed-117b9a271776","scheduledAt":"2026-10-10T16:57:57.276Z","intervalMs":14400000,"status":"active"}
+✅ Test (a) PASSED.
+
+------------------------------------------------------------------------
+▶ Acceptance Test (b): Recurring Search Cache Staleness & API Call Throttling
+------------------------------------------------------------------------
+  - 1st Run (Stale Cache): Executed = true, Calls Made = 3, Matches = 3
+  - 2nd Run (Fresh Cache): Executed = false, Skipped = true, Reason = cache_fresh, Calls Made = 0
+✅ Test (b) PASSED.
+
+------------------------------------------------------------------------
+▶ Acceptance Test (c): Active Removal of Job from Redis on User Logout
+------------------------------------------------------------------------
+  - Logout HTTP Status: 200
+  - Job Scheduled in Redis after Logout: false
+✅ Test (c) PASSED.
+
+------------------------------------------------------------------------
+▶ Acceptance Test (d): Active Removal of Job on 30-Minute Idle Timeout
+------------------------------------------------------------------------
+  - Re-login HTTP Status: 200
+  - Job Scheduled in Redis after Re-login: true
+  - Authenticated Request with Idle Session Status: 401 (expect 401)
+  - Job Scheduled in Redis after Idle Expiration: false
+✅ Test (d) PASSED.
+
+------------------------------------------------------------------------
+▶ Acceptance Test (e): Immediate Manual User Search Priority
+------------------------------------------------------------------------
+  - Manual Search HTTP Status: 200
+  - Manual Search Response Time: 8107 ms
+  - Manual Search Success: true
+✅ Test (e) PASSED.
+
+------------------------------------------------------------------------
+▶ Acceptance Test (f): Quota-Aware Throttling & Zero Quota Drain
+------------------------------------------------------------------------
+  - Low Quota Background Run Skipped: true
+  - Skip Reason: low_quota
+  - API Calls Made by Background Job: 0
+✅ Test (f) PASSED.
+
+========================================================================
+🎉 MODULE 5 ACCEPTANCE TESTS (a - f) PASSED 100% PERFECTLY!
+========================================================================

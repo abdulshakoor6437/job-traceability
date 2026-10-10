@@ -1,0 +1,342 @@
+﻿
+> job-hunting-assistant@0.1.0 test:all
+> npm --prefix apps/api run test:all
+
+
+> @job-agent/api@0.1.0 test:all
+> tsx scripts/test-all.ts
+
+
+================================================================
+≡ƒÜÇ RUNNING ALL MODULE 0, 1, 2, 3, 4, 5 & 6 TEST SUITES (npm run test:all)
+================================================================
+
+≡ƒöì [STEP 0] Running Strict TypeScript Compile Check (tsc --noEmit)...
+Γ£à TYPECHECK PASSED: 0 TypeScript compilation errors.
+
+Γû╢ Executing Module: DAL Scope Check (check:dal) (tsx scripts/check-dal-imports.ts)...
+≡ƒöì Running Strict Data Access Layer Architecture Check...
+Γ£à DAL Check Passed: MySQL pool and db driver are completely unreachable outside src/dal.
+
+Γ£à MODULE PASSED: DAL Scope Check (check:dal)
+
+Γû╢ Executing Module: DAL Isolation & ID Injection (tsx scripts/test-dal-isolation.ts)...
+
+================================================================
+≡ƒº¬ RUNNING DATA LAYER ISOLATION & ID INJECTION UNIT TESTS
+================================================================
+
+   User B Initial Settings: ID=174a323f-b8f6-43a7-b0b3-718679a8b352, Timezone=Asia/Tokyo
+
+1∩╕ÅΓâú Testing userScopedDal Methods Isolation:
+   dalA.getProfile() Returned Email: dal_user_a_1791650460991@example.com
+   dalA.getSettings() Returned Timezone: America/Los_Angeles
+   dalB.getSettings() After dalA update: Timezone=Asia/Tokyo
+   Γ£à DAL Unit Test PASSED: dalA cannot read or mutate User B data.
+
+2∩╕ÅΓâú Testing Direct SQL Verification of User B Record Un-mutated:
+   Γ£à Direct MySQL Table Check PASSED: User B row remains untouched in DB.
+
+================================================================
+≡ƒÄë DATA LAYER ISOLATION UNIT TESTS PASSED PERFECTLY!
+================================================================
+
+Γ£à MODULE PASSED: DAL Isolation & ID Injection
+
+Γû╢ Executing Module: Production Security & Anti-Enumeration (tsx scripts/test-prod-security.ts)...
+
+================================================================
+≡ƒº¬ RUNNING PRODUCTION SECURITY & TOKEN ABSENCE PROOF
+================================================================
+
+Γû╢ Testing Environment: Development + Console Mode...
+[API RUNNER OUTPUT] ≡ƒôº Starting Email Outbox Background Worker...
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒîÉ API Server listening on port 4101
+Environment: development
+Allowed Origin: http://localhost:3000
+Email Mode: console
+======================================================
+
+
+   [Signup]              Status: 201 | Token/Link Absent: YES
+   [Resend Verification] Status: 200 | Token/Link Absent: YES
+   [Request Reset]       Status: 200 | Token/Link Absent: YES
+   Γ£à Development + Console Mode VERIFIED CLEAN: No tokens or links returned in any response.
+
+Γû╢ Testing Environment: Development + SMTP Mode...
+[API RUNNER OUTPUT] ≡ƒôº Starting Email Outbox Background Worker...
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒîÉ API Server listening on port 4102
+Environment: development
+
+[API RUNNER OUTPUT] Allowed Origin: http://localhost:3000
+
+[API RUNNER OUTPUT] Email Mode: smtp
+
+[API RUNNER OUTPUT] ======================================================
+
+
+   [Signup]              Status: 201 | Token/Link Absent: YES
+   [Resend Verification] Status: 200 | Token/Link Absent: YES
+   [Request Reset]       Status: 200 | Token/Link Absent: YES
+   Γ£à Development + SMTP Mode VERIFIED CLEAN: No tokens or links returned in any response.
+
+Γû╢ Testing Environment: Production + SMTP Mode...
+[API RUNNER OUTPUT] ≡ƒôº Starting Email Outbox Background Worker...
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒîÉ API Server listening on port 4103
+Environment: production
+Allowed Origin: https://staging.jobassistant.com
+
+[API RUNNER OUTPUT] Email Mode: smtp
+
+[API RUNNER OUTPUT] ======================================================
+
+
+   [Signup]              Status: 201 | Token/Link Absent: YES
+   [Resend Verification] Status: 200 | Token/Link Absent: YES
+   [Request Reset]       Status: 200 | Token/Link Absent: YES
+   Γ£à Production + SMTP Mode VERIFIED CLEAN: No tokens or links returned in any response.
+
+================================================================
+≡ƒÄë ALL PRODUCTION SECURITY & TOKEN ABSENCE TESTS PASSED PERFECTLY!
+================================================================
+
+Γ£à MODULE PASSED: Production Security & Anti-Enumeration
+
+Γû╢ Executing Module: Offline Auth (Redis Stopped) (tsx scripts/test-offline-auth.ts)...
+
+================================================================
+≡ƒº¬ RUNNING AUTOMATED AUTH TEST WITH REDIS COMPLETELY STOPPED
+================================================================
+
+[API RUNNER OUTPUT] ≡ƒôº Starting Email Outbox Background Worker...
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒîÉ API Server listening on port 4000
+Environment: development
+Allowed Origin: http://localhost:3000
+Email Mode: console
+======================================================
+
+
+1∩╕ÅΓâú Step 1: Signup User (Redis Offline)
+   Signup Status: 201
+
+2∩╕ÅΓâú Step 2: Resend Verification Request (Redis Offline)
+   Resend Status: 200
+
+3∩╕ÅΓâú Step 3: Direct DB Email Verification (Redis Offline)
+   User marked verified in database.
+
+4∩╕ÅΓâú Step 4: Login User (Redis Offline)
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒôº [EMAIL SENDER - CONSOLE DEV PROVIDER]
+To: token_absence_4101_1791650463985@example.com
+Subject: Verify your email for Job Application Assistant
+Body:
+Hello,
+
+Please verify your email address by opening the following link in your browser:
+http://localhost:3000/verify-email?token=bbae7ef9134d5b08a6ea4d678097bb132f464d0c6e662c0f47926253d710262d
+
+Note: This link expires in 24 hours.
+
+If you did not create an account, you can safely ignore this email.
+======================================================
+
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒôº [EMAIL SENDER - CONSOLE DEV PROVIDER]
+To: token_absence_4101_1791650463985@example.com
+Subject: Reset your Job Application Assistant password
+Body:
+Hello,
+
+We received a request to reset your password. You can set a new password by clicking the link below:
+http://localhost:3000/reset-password?token=8fcc22264052d35a76f8f004a52022ae591f85eddc42cdcfc6f5f627d53f6fd7
+
+Note: This link expires in 1 hour.
+
+If you did not request a password reset, please ignore this email.
+======================================================
+
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒôº [EMAIL SENDER - CONSOLE DEV PROVIDER]
+To: token_absence_4101_1791650463985@example.com
+Subject: Verify your email for Job Application Assistant
+Body:
+Hello,
+
+Please verify your email address by opening the following link in your browser:
+http://localhost:3000/verify-email?token=878b6ce14780a45304f6a5afd89d503334b726edf296c5ae09e21208c0b8c03f
+
+Note: This link expires in 24 hours.
+
+If you did not create an account, you can safely ignore this email.
+======================================================
+
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒôº [EMAIL SENDER - CONSOLE DEV PROVIDER]
+To: token_absence_4102_1791650463985@example.com
+Subject: Verify your email for Job Application Assistant
+Body:
+Hello,
+
+Please verify your email address by opening the following link in your browser:
+http://localhost:3000/verify-email?token=2547f1390fb46ba6922a39eb75f168b484e9f2c5186c6be8765c4ddd2a8f5ac7
+
+Note: This link expires in 24 hours.
+
+If you did not create an account, you can safely ignore this email.
+======================================================
+
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒôº [EMAIL SENDER - CONSOLE DEV PROVIDER]
+To: token_absence_4102_1791650463985@example.com
+Subject: Reset your Job Application Assistant password
+Body:
+Hello,
+
+We received a request to reset your password. You can set a new password by clicking the link below:
+http://localhost:3000/reset-password?token=6b22037549467e14ad6e165a617ca42480ee3fb7bb763e899949d73356e914c7
+
+Note: This link expires in 1 hour.
+
+If you did not request a password reset, please ignore this email.
+======================================================
+
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒôº [EMAIL SENDER - CONSOLE DEV PROVIDER]
+To: token_absence_4102_1791650463985@example.com
+Subject: Verify your email for Job Application Assistant
+Body:
+Hello,
+
+Please verify your email address by opening the following link in your browser:
+http://localhost:3000/verify-email?token=ab8271159f61e0cb8a425a77eff4ba5e1d498947a54f1c4198bb2897af2c6a95
+
+Note: This link expires in 24 hours.
+
+If you did not create an account, you can safely ignore this email.
+======================================================
+
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒôº [EMAIL SENDER - CONSOLE DEV PROVIDER]
+To: token_absence_4103_1791650463985@example.com
+Subject: Verify your email for Job Application Assistant
+Body:
+Hello,
+
+Please verify your email address by opening the following link in your browser:
+http://localhost:3000/verify-email?token=addb1573488c2397dcc8323ba671173036ea441e253ed8b4415c60337b2eed06
+
+Note: This link expires in 24 hours.
+
+If you did not create an account, you can safely ignore this email.
+======================================================
+
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒôº [EMAIL SENDER - CONSOLE DEV PROVIDER]
+To: token_absence_4103_1791650463985@example.com
+Subject: Verify your email for Job Application Assistant
+Body:
+Hello,
+
+Please verify your email address by opening the following link in your browser:
+http://localhost:3000/verify-email?token=b452bb3f503333ecd4a9e22272cb81a93c1237da37c91cc4fa7ceec73ff7bd1a
+
+Note: This link expires in 24 hours.
+
+If you did not create an account, you can safely ignore this email.
+======================================================
+
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒôº [EMAIL SENDER - CONSOLE DEV PROVIDER]
+To: token_absence_4103_1791650463985@example.com
+Subject: Reset your Job Application Assistant password
+Body:
+Hello,
+
+We received a request to reset your password. You can set a new password by clicking the link below:
+http://localhost:3000/reset-password?token=f6840626108199ae24b59b0552763c5075339074579d7ca110db7639465f0596
+
+Note: This link expires in 1 hour.
+
+If you did not request a password reset, please ignore this email.
+======================================================
+
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒôº [EMAIL SENDER - CONSOLE DEV PROVIDER]
+To: offline_auth_1791650493321@example.com
+Subject: Verify your email for Job Application Assistant
+Body:
+Hello,
+
+Please verify your email address by opening the following link in your browser:
+http://localhost:3000/verify-email?token=68c3385158caa3e6f72a82db00c1e267bf135b74fd14c07a3be792e8728b3e16
+
+Note: This link expires in 24 hours.
+
+If you did not create an account, you can safely ignore this email.
+======================================================
+
+
+[API RUNNER OUTPUT] 
+======================================================
+
+[API RUNNER OUTPUT] ≡ƒôº [EMAIL SENDER - CONSOLE DEV PROVIDER]
+To: offline_auth_1791650493321@example.com
+Subject: Verify your email for Job Application Assistant
+Body:
+Hello,
+
+Please verify your email address by opening the following link in your browser:
+http://localhost:3000/verify-email?token=5dcdb36ad96b84a2c91b3e7bc3545b76faa4b319273dccafe109c85de8c27de7
+
+Note: This link expires in 24 hours.
+
+If you did not create an account, you can safely ignore this email.
+======================================================
+
+

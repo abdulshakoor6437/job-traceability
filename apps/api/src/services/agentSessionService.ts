@@ -13,27 +13,27 @@ export const DEFAULT_SEARCH_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
 export class AgentSessionService {
   private redis: Redis | null = null;
   private queue: Queue | null = null;
-  private worker: Worker | null = null;
-  private isInitialized = false;
 
-  constructor() {
-    this.initRedis();
-  }
-
-  private initRedis() {
-    try {
-      this.redis = createRedisClient();
-      this.queue = new Queue(QUEUE_NAME, { connection: this.redis });
-    } catch (err: any) {
-      console.warn(`[AGENT SESSION SERVICE] Redis initialization warning: ${err.message}`);
-    }
-  }
-
-  public getRedisClient(): Redis | null {
+  public getRedisClient(): Redis {
     if (!this.redis) {
-      this.initRedis();
+      this.redis = createRedisClient();
     }
     return this.redis;
+  }
+
+  public getQueue(): Queue {
+    if (!this.queue) {
+      this.queue = new Queue(QUEUE_NAME, { connection: this.getRedisClient() });
+    }
+    return this.queue;
+  }
+
+  private async withTimeout<T>(promise: Promise<T>, ms: number = 2000, fallback: T): Promise<T> {
+    let timer: NodeJS.Timeout;
+    const timeoutPromise = new Promise<T>((resolve) => {
+      timer = setTimeout(() => resolve(fallback), ms);
+    });
+    return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
   }
 
   /**
@@ -52,30 +52,28 @@ export class AgentSessionService {
       status: 'active',
     };
 
-    if (redis) {
-      try {
-        await redis.set(redisKey, JSON.stringify(jobMetadata));
-      } catch (err: any) {
-        console.warn(`[AGENT SESSION SERVICE] Could not write to Redis: ${err.message}`);
-      }
+    try {
+      await this.withTimeout(redis.set(redisKey, JSON.stringify(jobMetadata)), 1500, null);
+    } catch (err: any) {
+      console.warn(`[AGENT SESSION SERVICE] Could not write to Redis: ${err.message}`);
     }
 
-    if (this.queue) {
-      try {
-        const repeatKey = `user-recurring-search-${userId}`;
-        // Remove old repeatable job if existing to prevent duplicates
-        await this.queue.removeRepeatableByKey(repeatKey).catch(() => {});
-        await this.queue.add(
+    try {
+      const queue = this.getQueue();
+      await this.withTimeout(
+        queue.add(
           'user-recurring-search',
           { userId },
           {
             repeat: { every: intervalMs },
             jobId: `user-search-${userId}`,
           }
-        );
-      } catch (err: any) {
-        console.warn(`[AGENT SESSION SERVICE] BullMQ schedule error: ${err.message}`);
-      }
+        ),
+        1500,
+        null
+      );
+    } catch (err: any) {
+      console.warn(`[AGENT SESSION SERVICE] BullMQ schedule error: ${err.message}`);
     }
 
     console.log(`[AGENT SESSION CONTROL] Scheduled background search job for active user ${userId} (interval: ${intervalMs}ms)`);
@@ -90,28 +88,23 @@ export class AgentSessionService {
 
     const redis = this.getRedisClient();
     const redisKey = `agent_session:active_job:${userId}`;
-    let removedFromRedis = false;
 
-    if (redis) {
-      try {
-        const deletedCount = await redis.del(redisKey);
-        removedFromRedis = deletedCount > 0;
-      } catch (err: any) {
-        console.warn(`[AGENT SESSION SERVICE] Redis delete error: ${err.message}`);
-      }
+    try {
+      await this.withTimeout(redis.del(redisKey), 1500, 0);
+    } catch (err: any) {
+      console.warn(`[AGENT SESSION SERVICE] Redis delete error: ${err.message}`);
     }
 
-    if (this.queue) {
-      try {
-        const repeatableJobs = await this.queue.getRepeatableJobs();
-        for (const job of repeatableJobs) {
-          if (job.id === `user-search-${userId}` || job.name === 'user-recurring-search' && job.key.includes(userId)) {
-            await this.queue.removeRepeatableByKey(job.key);
-          }
+    try {
+      const queue = this.getQueue();
+      const repeatableJobs = await this.withTimeout(queue.getRepeatableJobs(), 1500, []);
+      for (const job of repeatableJobs) {
+        if (job.id === `user-search-${userId}` || (job.name === 'user-recurring-search' && job.key.includes(userId))) {
+          await this.withTimeout(queue.removeRepeatableByKey(job.key), 1500, false);
         }
-      } catch (err: any) {
-        console.warn(`[AGENT SESSION SERVICE] BullMQ remove error: ${err.message}`);
       }
+    } catch (err: any) {
+      console.warn(`[AGENT SESSION SERVICE] BullMQ remove error: ${err.message}`);
     }
 
     console.log(`[AGENT SESSION CONTROL] Actively removed background search job from Redis for user ${userId}`);
@@ -124,10 +117,9 @@ export class AgentSessionService {
   async isJobScheduled(userId: string): Promise<boolean> {
     if (!userId) return false;
     const redis = this.getRedisClient();
-    if (!redis) return false;
 
     try {
-      const exists = await redis.exists(`agent_session:active_job:${userId}`);
+      const exists = await this.withTimeout(redis.exists(`agent_session:active_job:${userId}`), 1500, 0);
       return exists === 1;
     } catch {
       return false;
@@ -140,10 +132,9 @@ export class AgentSessionService {
   async getJobMetadata(userId: string): Promise<any | null> {
     if (!userId) return null;
     const redis = this.getRedisClient();
-    if (!redis) return null;
 
     try {
-      const raw = await redis.get(`agent_session:active_job:${userId}`);
+      const raw = await this.withTimeout(redis.get(`agent_session:active_job:${userId}`), 1500, null);
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
@@ -168,7 +159,7 @@ export class AgentSessionService {
     let lowQuotaDetected = false;
     for (const provider of providers) {
       const quotaConfig = JOB_SOURCING_CONFIG.providerQuotas[provider];
-      if (quotaConfig && quotaConfig.monthlyLimit !== Infinity) {
+      if (quotaConfig && quotaConfig.monthlyLimit !== undefined && quotaConfig.monthlyLimit !== Infinity) {
         try {
           const used = await jobDal.getProviderUsageThisMonth(provider);
           if (used >= quotaConfig.monthlyLimit) {
@@ -205,7 +196,7 @@ export class AgentSessionService {
     const cachedSearch = await jobDal.getCachedSearch(cacheKey);
 
     if (cachedSearch) {
-      console.log(`[AGENT SESSION CONTROL] Shared search cache for '${role}' is FRESH (expires at ${cachedSearch.expiresAt}). 0 external API calls spent.`);
+      console.log(`[AGENT SESSION CONTROL] Shared search cache for '${role}' is FRESH (expires at ${cachedSearch.cache.expires_at}). 0 external API calls spent.`);
       return { executed: false, skipped: true, reason: 'cache_fresh', callsMade: 0 };
     }
 
@@ -215,7 +206,7 @@ export class AgentSessionService {
 
     const searchResult = await jobSearchService.searchJobs({
       query: role,
-      location,
+      location: location || undefined,
       filters,
       forceRefresh: true,
     });
@@ -227,7 +218,7 @@ export class AgentSessionService {
     try {
       const matchResult = await matchingService.searchMatches(
         userId,
-        { location, remoteOnly: filters.remoteOnly },
+        { location: location || undefined, remoteOnly: filters.remoteOnly },
         { forceRefresh: true }
       );
       totalMatches = matchResult.totalMatches;

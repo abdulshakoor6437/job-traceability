@@ -215,25 +215,29 @@ export class FitExplanationService {
     } else {
       // Default production provider chain: Gemini -> Groq -> Mock
       const defaultChain: IFitExplanationProvider[] = [];
-      if (process.env.GEMINI_API_KEY) {
-        try {
-          defaultChain.push(new GeminiFitExplanationProvider());
-        } catch {
-          // ignore init error
+      if (process.env.USE_MOCK_EMBEDDINGS === 'true') {
+        defaultChain.push(new MockFitExplanationProvider());
+      } else {
+        if (process.env.GEMINI_API_KEY) {
+          try {
+            defaultChain.push(new GeminiFitExplanationProvider());
+          } catch {
+            // ignore init error
+          }
         }
+        if (process.env.GROQ_API_KEY) {
+          defaultChain.push(
+            new OpenAIFallbackFitExplanationProvider(
+              'groq',
+              'https://api.groq.com/openai/v1/chat/completions',
+              process.env.GROQ_API_KEY,
+              process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
+            )
+          );
+        }
+        // Always have mock as fallback
+        defaultChain.push(new MockFitExplanationProvider());
       }
-      if (process.env.GROQ_API_KEY) {
-        defaultChain.push(
-          new OpenAIFallbackFitExplanationProvider(
-            'groq',
-            'https://api.groq.com/openai/v1/chat/completions',
-            process.env.GROQ_API_KEY,
-            process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
-          )
-        );
-      }
-      // Always have mock as fallback
-      defaultChain.push(new MockFitExplanationProvider());
       this.providers = defaultChain;
     }
   }

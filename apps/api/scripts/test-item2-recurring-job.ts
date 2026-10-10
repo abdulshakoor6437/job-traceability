@@ -45,7 +45,7 @@ async function testItem2() {
     // Configure fast mock providers to avoid external LLM rate limits and delays
     matchingService.setProviders({
       embeddingProvider: new MockEmbeddingProvider(),
-      fitExplanationService: new FitExplanationService(new MockFitExplanationProvider()),
+      fitExplanationService: new FitExplanationService([new MockFitExplanationProvider()]),
     });
 
     await apiRunner.startServer(PORT);
@@ -87,13 +87,30 @@ async function testItem2() {
       userId,
       cvFile.id,
       {
-        contact_info: { full_name: 'John Developer', email },
+        contact_info: {
+          full_name: 'John Developer',
+          email,
+          phone: '555-0100',
+          location: 'San Francisco',
+          linkedin_url: null,
+          website: null,
+        },
         summary: 'Experienced Cloud Systems Architect specializing in cloud infrastructure.',
-        skills: ['AWS', 'Kubernetes', 'TypeScript', 'Node.js', 'SQL'],
+        skills: [
+          { skill_name: 'AWS', category: 'Cloud' },
+          { skill_name: 'Kubernetes', category: 'Cloud' },
+          { skill_name: 'TypeScript', category: 'Languages' },
+          { skill_name: 'Node.js', category: 'Backend' },
+          { skill_name: 'SQL', category: 'Databases' },
+        ],
         work_history: [
           {
             title: 'Cloud Systems Architect',
             company: 'Tech Inc',
+            location: 'San Francisco',
+            start_date: '2020-01-01',
+            end_date: null,
+            is_current: true,
             bullet_points: ['Built cloud infrastructure'],
           },
         ],
@@ -102,8 +119,11 @@ async function testItem2() {
             institution: 'University',
             degree: 'B.S.',
             field_of_study: 'Computer Science',
+            start_date: '2016-09-01',
+            end_date: '2020-05-01',
           },
         ],
+        certifications: [],
       },
       false
     );

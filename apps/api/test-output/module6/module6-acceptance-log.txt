@@ -12,18 +12,18 @@
 
 ▶ [TEST b] Testing Extension Auth Connection & Session Sync...
    Active Session HTTP Status: 200
-   User Email Returned: ext_user_1791613795617@example.com
+   User Email Returned: ext_user_1791651455330@example.com
    Tailored CV List Count: 1
    Selected CV Label: Senior Fullstack Engineer @ Acme Systems
 ✅ TEST (b) PASSED: Extension auth connection & tailored CV list sync verified.
 
 ▶ [TEST c] Testing Greenhouse Form Detection & Autofill...
    Detected Board: Greenhouse
-   Filled Fields: First Name="Jane", Email="ext_user_1791613795617@example.com", Phone="555-9999"
+   Filled Fields: First Name="Jane", Email="ext_user_1791651455330@example.com", Phone="555-9999"
 ✅ TEST (c) PASSED: Greenhouse form detection & autofill verified.
 
 ▶ [TEST d] Testing Lever Form Detection & Autofill...
-   Lever Form Filled: Board="Lever", Name="Jane Doe", Email="ext_user_1791613795617@example.com"
+   Lever Form Filled: Board="Lever", Name="Jane Doe", Email="ext_user_1791651455330@example.com"
 ✅ TEST (d) PASSED: Lever form detection & autofill verified.
 
 ▶ [TEST e] Testing Ashby Form Detection & Autofill...
@@ -42,8 +42,8 @@
 ▶ [TEST h] Testing "Mark as Applied" Status Update Integration...
    Mark Applied HTTP Status: 200
    Application Status in DB: APPLIED
-   Applied At Timestamp: 2026-10-09T23:30:00.000Z
-   Direct MySQL Record: ID=65e80034-bd26-43d4-a8c3-9e6bb156f5f1, UserID=610c0243-dccd-4058-b3f3-4be3cfb73dca, Status=APPLIED
+   Applied At Timestamp: 2026-10-10T09:57:40.000Z
+   Direct MySQL Record: ID=fa3440c4-90c1-4089-b14f-9180696a0b82, UserID=233cb08b-b7b9-4f36-9b2f-39f0fa23ba18, Status=APPLIED
    User B Application Query Result: null
 ✅ TEST (h) PASSED: "Mark as Applied" status update and cross-user isolation verified.
 

@@ -1,0 +1,20 @@
+================================================================
+🧪 SCOPE ITEM 4 VERIFICATION: Quota-Aware Throttling & Priority
+================================================================
+
+1. Registering & logging in user quota_user_1791649778910@example.com...
+
+2. Simulating provider 'jsearch' monthly quota limit reached (100/100 calls)...
+
+3. Executing background job with low quota...
+   Background Job Executed: false
+   Background Job Skipped: true
+   Skip Reason: low_quota
+   Calls Made by Background Job: 0
+
+4. Triggering manual, user-initiated search (verifying priority)...
+   Manual Search Status: 200
+   Manual Search Duration: 25519 ms
+   Manual Search Returned Success: true
+
+✅ ITEM 4 VERIFICATION PASSED PERFECTLY!

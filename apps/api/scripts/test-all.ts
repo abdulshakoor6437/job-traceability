@@ -25,6 +25,7 @@ const testScripts = [
   { name: 'Module 3: Matching & Ranking Acceptance Suite (Tests a-g)', command: 'tsx scripts/test-module3-acceptance.ts' },
   { name: 'Module 4: CV Tailoring Acceptance Suite (Tests a-g)', command: 'tsx scripts/test-module4-acceptance.ts' },
   { name: 'Module 5: Dashboard UI Acceptance Suite (Tests a-f)', command: 'tsx scripts/test-module5-acceptance.ts' },
+  { name: 'Module 5: Agent Session Control Acceptance Suite (Tests a-f)', command: 'tsx scripts/test-module5-agent-control.ts' },
   { name: 'Module 6 Addition: GET /api/tailored-cv/list Endpoint', command: 'tsx scripts/test-tailored-cv-list.ts' },
   { name: 'Module 6: Chrome Extension Autofill Acceptance Suite (Tests a-h)', command: 'tsx scripts/test-module6-acceptance.ts' },
 ];
