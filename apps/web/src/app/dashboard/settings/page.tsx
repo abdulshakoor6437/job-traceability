@@ -31,9 +31,8 @@ export default function SettingsPage() {
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
 
-  // Quota usage tracking
-  const [usedToday, setUsedToday] = useState(0);
-  const dailyCap = 20;
+  // Unified Usage & Limits panel state
+  const [limits, setLimits] = useState<any | null>(null);
 
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,23 +57,19 @@ export default function SettingsPage() {
       const userData = await userRes.json();
       setUser(userData.user);
 
-      // Read status tracking for today's count
-      const savedKey = `job_app_status_${userData.user.id}`;
-      const savedStr = localStorage.getItem(savedKey);
-      if (savedStr) {
-        try {
-          const map = JSON.parse(savedStr);
-          const count = Object.keys(map).length;
-          setUsedToday(Math.min(count, dailyCap));
-        } catch {}
-      }
-
       // 2. Fetch user settings
       const setRes = await fetch('/api/user/settings');
       if (setRes.ok) {
         const setData = await setRes.json();
         setSettings(setData.settings);
         setTimezoneInput(setData.settings.timezone || 'UTC');
+      }
+
+      // 3. Fetch unified usage limits
+      const limitsRes = await fetch('/api/user/limits');
+      if (limitsRes.ok) {
+        const limitsData = await limitsRes.json();
+        setLimits(limitsData);
       }
     } catch (err: any) {
       setError(err.message);
@@ -225,28 +220,103 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {/* 2. Daily Tailoring Quota Usage */}
+            {/* 2. Unified Usage & Limits Panel */}
             <div className="card">
-              <div className="card-title">⚡ Daily Tailoring Quota Usage</div>
+              <div className="card-title">📊 Unified Usage & Limits</div>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: 0 }}>
-                Every user is allocated {dailyCap} tailored CV generations per day. Usage resets every 24 hours.
+                Single source of truth for all active provider API quotas, tailoring daily caps, and background search job throttling status.
               </p>
 
-              <div style={{ background: '#e2e8f0', borderRadius: '8px', height: '16px', overflow: 'hidden', margin: '16px 0 8px 0' }}>
-                <div
-                  style={{
-                    background: usedToday >= dailyCap ? '#ef4444' : '#2563eb',
-                    width: `${Math.min(100, (usedToday / dailyCap) * 100)}%`,
-                    height: '100%',
-                    transition: 'width 0.3s ease',
-                  }}
-                />
-              </div>
+              {limits && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+                  {/* 1. Tailoring Daily Limit */}
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <strong style={{ fontSize: '14px' }}>⚡ Tailored CV Daily Cap</strong>
+                      <span className={`badge ${limits.tailoring.isExhausted ? 'badge-danger' : 'badge-success'}`}>
+                        {limits.tailoring.isExhausted ? 'Exhausted' : 'Active'}
+                      </span>
+                    </div>
+                    <div style={{ background: '#cbd5e1', borderRadius: '4px', height: '8px', overflow: 'hidden', margin: '10px 0 6px 0' }}>
+                      <div
+                        style={{
+                          background: limits.tailoring.isExhausted ? '#ef4444' : '#2563eb',
+                          width: `${Math.min(100, (limits.tailoring.usedToday / limits.tailoring.dailyLimit) * 100)}%`,
+                          height: '100%',
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b' }}>
+                      <span>Used Today: {limits.tailoring.usedToday} / {limits.tailoring.dailyLimit}</span>
+                      <span>Remaining: {limits.tailoring.remaining}</span>
+                    </div>
+                  </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 600 }}>
-                <span>{usedToday} / {dailyCap} Generations Used Today</span>
-                <span>{Math.max(0, dailyCap - usedToday)} Remaining</span>
-              </div>
+                  {/* 2. JSearch Monthly Quota */}
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <strong style={{ fontSize: '14px' }}>🔍 JSearch Monthly Quota</strong>
+                      <span className={`badge ${limits.jsearch.isExhausted ? 'badge-danger' : 'badge-success'}`}>
+                        {limits.jsearch.isExhausted ? 'Exhausted' : 'Normal'}
+                      </span>
+                    </div>
+                    <div style={{ background: '#cbd5e1', borderRadius: '4px', height: '8px', overflow: 'hidden', margin: '10px 0 6px 0' }}>
+                      <div
+                        style={{
+                          background: limits.jsearch.isExhausted ? '#ef4444' : '#059669',
+                          width: `${Math.min(100, (limits.jsearch.usedThisMonth / limits.jsearch.monthlyLimit) * 100)}%`,
+                          height: '100%',
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b' }}>
+                      <span>Calls This Month: {limits.jsearch.usedThisMonth} / {limits.jsearch.monthlyLimit}</span>
+                      <span>Remaining: {limits.jsearch.remaining}</span>
+                    </div>
+                  </div>
+
+                  {/* 3. SerpApi Monthly Quota */}
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <strong style={{ fontSize: '14px' }}>🌐 SerpApi Monthly Quota</strong>
+                      <span className={`badge ${limits.serpapi.isExhausted ? 'badge-danger' : 'badge-success'}`}>
+                        {limits.serpapi.isExhausted ? 'Exhausted' : 'Normal'}
+                      </span>
+                    </div>
+                    <div style={{ background: '#cbd5e1', borderRadius: '4px', height: '8px', overflow: 'hidden', margin: '10px 0 6px 0' }}>
+                      <div
+                        style={{
+                          background: limits.serpapi.isExhausted ? '#ef4444' : '#059669',
+                          width: `${Math.min(100, (limits.serpapi.usedThisMonth / limits.serpapi.monthlyLimit) * 100)}%`,
+                          height: '100%',
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b' }}>
+                      <span>Calls This Month: {limits.serpapi.usedThisMonth} / {limits.serpapi.monthlyLimit}</span>
+                      <span>Remaining: {limits.serpapi.remaining}</span>
+                    </div>
+                  </div>
+
+                  {/* 4. Background Search Job Throttling */}
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <strong style={{ fontSize: '14px' }}>🤖 Background Search Job</strong>
+                      <span className={`badge ${limits.backgroundJob.isThrottled ? 'badge-warning' : limits.backgroundJob.status === 'active' ? 'badge-success' : 'badge-outline'}`}>
+                        {limits.backgroundJob.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#64748b', margin: '10px 0 4px 0' }}>
+                      Every 4h background search schedule status. Throttled automatically if provider monthly quota is low/exhausted.
+                    </p>
+                    {limits.backgroundJob.throttleReason && (
+                      <div style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500, marginTop: '4px' }}>
+                        ⚠️ {limits.backgroundJob.throttleReason}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 3. Timezone & User Settings */}
