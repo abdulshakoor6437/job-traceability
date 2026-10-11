@@ -22,6 +22,7 @@
     "test:module3": "tsx scripts/test-module3-acceptance.ts",
     "test:module4": "tsx scripts/test-module4-acceptance.ts",
     "test:module6": "tsx scripts/test-module6-acceptance.ts",
+    "test:module8": "tsx scripts/test-module8-acceptance.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

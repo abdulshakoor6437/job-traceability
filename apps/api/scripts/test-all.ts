@@ -28,11 +28,12 @@ const testScripts = [
   { name: 'Module 5: Agent Session Control Acceptance Suite (Tests a-f)', command: 'tsx scripts/test-module5-agent-control.ts' },
   { name: 'Module 6 Addition: GET /api/tailored-cv/list Endpoint', command: 'tsx scripts/test-tailored-cv-list.ts' },
   { name: 'Module 6: Chrome Extension Autofill Acceptance Suite (Tests a-h)', command: 'tsx scripts/test-module6-acceptance.ts' },
+  { name: 'Module 8: Notifications, History, Plans & Limits Acceptance Suite (Tests a-h)', command: 'tsx scripts/test-module8-acceptance.ts' },
 ];
 
 async function runAllTests() {
   console.log('\n================================================================');
-  console.log('🚀 RUNNING ALL MODULE 0, 1, 2, 3, 4, 5 & 6 TEST SUITES (npm run test:all)');
+  console.log('🚀 RUNNING ALL MODULE 0 - 8 MONOREPO TEST SUITES (npm run test:all)');
   console.log('================================================================\n');
 
   console.log('🔍 [STEP 0] Running Strict TypeScript Compile Check (tsc --noEmit)...');

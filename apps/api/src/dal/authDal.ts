@@ -498,6 +498,17 @@ export class AuthDal {
 
     return { allowed: true, retryAfterSeconds: 0 };
   }
+
+  /**
+   * Retrieves all verified users for system background jobs (e.g. daily digest).
+   */
+  async getAllVerifiedUsers(): Promise<Array<{ id: string; email: string }>> {
+    const pool = getDbPool();
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT id, email FROM users WHERE is_verified = 1`
+    );
+    return rows.map((r) => ({ id: r.id, email: r.email }));
+  }
 }
 
 export const authDal = new AuthDal();

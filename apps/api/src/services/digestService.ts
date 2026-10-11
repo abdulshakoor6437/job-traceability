@@ -1,8 +1,6 @@
 import crypto from 'crypto';
-import { getDbPool } from '../dal/db';
 import { authDal } from '../dal/authDal';
 import { createUserScopedDal } from '../dal/userScopedDal';
-import { RowDataPacket } from 'mysql2/promise';
 
 export class DigestService {
   /**
@@ -11,10 +9,7 @@ export class DigestService {
    * If unread high-match notifications exist since last digest, queues EXACTLY ONE digest email per user.
    */
   async processDailyEmailDigests(): Promise<{ usersProcessed: number; emailsQueued: number }> {
-    const pool = getDbPool();
-    const [users] = await pool.query<RowDataPacket[]>(
-      `SELECT id, email FROM users WHERE is_verified = 1`
-    );
+    const users = await authDal.getAllVerifiedUsers();
 
     let usersProcessed = 0;
     let emailsQueued = 0;

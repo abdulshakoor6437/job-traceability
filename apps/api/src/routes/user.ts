@@ -153,14 +153,14 @@ router.get('/limits', async (req: AuthenticatedRequest, res: Response) => {
 
     // 1. JSearch monthly quota
     const jsearchLimitConfig = JOB_SOURCING_CONFIG.providerQuotas['jsearch'] || { monthlyLimit: 500 };
-    const jsearchLimit = jsearchLimitConfig.monthlyLimit;
+    const jsearchLimit: number = jsearchLimitConfig.monthlyLimit ?? 500;
     const jsearchUsedRaw = await jobDal.getProviderUsageThisMonth('jsearch');
     const jsearchRapidUsed = await jobDal.getProviderUsageThisMonth('jsearch_rapidapi');
     const jsearchUsed = jsearchUsedRaw + jsearchRapidUsed;
 
     // 2. SerpApi monthly quota
     const serpLimitConfig = JOB_SOURCING_CONFIG.providerQuotas['serpapi'] || { monthlyLimit: 100 };
-    const serpLimit = serpLimitConfig.monthlyLimit;
+    const serpLimit: number = serpLimitConfig.monthlyLimit ?? 100;
     const serpUsedRaw = await jobDal.getProviderUsageThisMonth('serpapi');
     const serpGoogleUsed = await jobDal.getProviderUsageThisMonth('google_jobs_serpapi');
     const serpUsed = serpUsedRaw + serpGoogleUsed;

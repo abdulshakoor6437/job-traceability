@@ -226,28 +226,28 @@ export class AgentSessionService {
 
       // Module 8 Item 1: High-Match Notifications Hook
       const highMatchThreshold = parseInt(process.env.HIGH_MATCH_NOTIFICATION_THRESHOLD || '85', 10);
-      const dailyCap = parseInt(process.env.DAILY_NOTIFICATION_CAP || '10', 10);
+      const dailyCap = parseInt(process.env.NOTIFICATION_DAILY_CAP || process.env.DAILY_NOTIFICATION_CAP || '10', 10);
 
       let todayCount = await userDal.getTodayNotificationCount();
 
       for (const match of matchResult.matches || []) {
-        if (match.matchScore >= highMatchThreshold) {
+        if (match.score >= highMatchThreshold) {
           if (todayCount >= dailyCap) {
             console.log(`[AGENT SESSION CONTROL] Daily notification cap (${dailyCap}) reached for user ${userId}. Skipping further notifications.`);
             break;
           }
 
-          const alreadyNotified = await userDal.hasNotificationForJob(match.job.id);
+          const alreadyNotified = await userDal.hasNotificationForJob(match.jobId);
           if (!alreadyNotified) {
             await userDal.createNotification(
               'high_match',
-              `High job match: ${match.job.title} at ${match.job.company} (${match.matchScore}% match)`,
-              match.job.id,
+              `High job match: ${match.title} at ${match.company} (${match.score}% match)`,
+              match.jobId,
               null
             );
             todayCount++;
             notificationsCreated++;
-            console.log(`[AGENT SESSION CONTROL] Created high-match notification for user ${userId}, job '${match.job.title}' (score: ${match.matchScore})`);
+            console.log(`[AGENT SESSION CONTROL] Created high-match notification for user ${userId}, job '${match.title}' (score: ${match.score})`);
           }
         }
       }

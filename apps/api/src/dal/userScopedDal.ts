@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { getDbPool } from './db';
-import { RowDataPacket } from 'mysql2/promise';
+import { RowDataPacket, ResultSetHeader } from 'mysql2/promise';
 
 export interface UserSettingsRow extends RowDataPacket {
   id: string;

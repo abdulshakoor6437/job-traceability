@@ -5,16 +5,16 @@
 ------------------------------------------------------------------------
 ▶ Acceptance Test (a): Background Job Scheduling on User Login
 ------------------------------------------------------------------------
-  - User ID: d3dc657d-56a2-459e-8510-e3650e7e91e8
+  - User ID: 2e8d6d64-7bd3-42c0-a8ec-8bc19a312669
   - Login HTTP Status: 200
   - Job Scheduled in Redis: true
-  - Redis Key Metadata: {"userId":"d3dc657d-56a2-459e-8510-e3650e7e91e8","scheduledAt":"2026-10-10T17:34:58.899Z","intervalMs":14400000,"status":"active"}
+  - Redis Key Metadata: {"userId":"2e8d6d64-7bd3-42c0-a8ec-8bc19a312669","scheduledAt":"2026-10-11T07:10:50.673Z","intervalMs":14400000,"status":"active"}
 ✅ Test (a) PASSED.
 
 ------------------------------------------------------------------------
 ▶ Acceptance Test (b): Recurring Search Cache Staleness & API Call Throttling
 ------------------------------------------------------------------------
-  - 1st Run (Stale Cache): Executed = true, Calls Made = 3, Matches = 1
+  - 1st Run (Stale Cache): Executed = true, Calls Made = 3, Matches = 2
   - 2nd Run (Fresh Cache): Executed = false, Skipped = true, Reason = cache_fresh, Calls Made = 0
 ✅ Test (b) PASSED.
 
@@ -38,7 +38,7 @@
 ▶ Acceptance Test (e): Immediate Manual User Search Priority
 ------------------------------------------------------------------------
   - Manual Search HTTP Status: 200
-  - Manual Search Response Time: 23006 ms
+  - Manual Search Response Time: 11606 ms
   - Manual Search Success: true
 ✅ Test (e) PASSED.
 
