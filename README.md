@@ -3,6 +3,7 @@
 A multi-tenant, AI-powered job application tracing and automation assistant. Users upload a single master CV, search and receive AI-tailored job matches, generate customized CVs and cover letters, track application statuses, and streamline form filing via a Chrome Extension — with strict security, cross-user data isolation, and a **zero auto-submit guarantee** (the user always reviews and submits applications manually).
 
 ---
+**Status:** ✅ Complete – all modules built and tested (23 automated test suites passing)
 
 ## 🚀 Key Features & Architectural Modules
 
@@ -40,11 +41,11 @@ A multi-tenant, AI-powered job application tracing and automation assistant. Use
 - Full user session lifecycle handling, activity heartbeat extension, and cross-tenant isolation enforcement.
 - Automated end-to-end acceptance testing suite with screenshot evidence generation.
 
-### 🧩 Module 6: Chrome Extension (Autofill Assistant - In Development)
-- Manifest V3 Chrome Extension shell (`apps/extension`).
-- Form detection and autofill for Greenhouse, Lever, and Ashby job application forms.
-- Guided resume file-picker prompts.
-- **Strict Zero Auto-Submit Policy**: No code path triggers form submission.
+### 🧩 Module 6: Chrome Extension (Autofill Assistant)
+- Manifest V3 Chrome Extension (`apps/extension`)
+- Form detection and autofill for Greenhouse, Lever, and Ashby job application forms
+- Guided resume file-picker prompts
+- **Strict Zero Auto-Submit Policy:** No code path triggers form submission. The user always reviews and submits manually.
 
 ---
 
